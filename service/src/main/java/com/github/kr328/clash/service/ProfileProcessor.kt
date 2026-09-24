@@ -9,7 +9,12 @@ import com.github.kr328.clash.service.data.Imported
 import com.github.kr328.clash.service.data.ImportedDao
 import com.github.kr328.clash.service.data.Pending
 import com.github.kr328.clash.service.data.PendingDao
+import com.github.kr328.clash.service.data.RuleOverrideDao
+import com.github.kr328.clash.service.model.CustomRule
 import com.github.kr328.clash.service.model.Profile
+import com.github.kr328.clash.service.model.RuleType
+import com.github.kr328.clash.service.override.RuleOverrideApplier
+import com.github.kr328.clash.service.override.RuleOverrideException
 import com.github.kr328.clash.service.remote.IFetchObserver
 import com.github.kr328.clash.service.store.ServiceStore
 import com.github.kr328.clash.service.util.importedDir
@@ -49,6 +54,8 @@ object ProfileProcessor {
 
                 val force = snapshot.type != Profile.Type.File
                 val subscriptionInfo = fetchProfile(context, snapshot.source, force, callback)
+
+                applyRuleOverrides(context, snapshot.uuid)
 
                 profileLock.withLock {
                     if (PendingDao().queryByUUID(snapshot.uuid) == snapshot) {
@@ -109,6 +116,8 @@ object ProfileProcessor {
 
                 val subscriptionInfo = fetchProfile(context, snapshot.source, true, callback)
 
+                applyRuleOverrides(context, snapshot.uuid)
+
                 profileLock.withLock {
                     val imported = ImportedDao().queryByUUID(snapshot.uuid)
                     if (imported != null) {
@@ -161,11 +170,30 @@ object ProfileProcessor {
         return subscriptionInfo
     }
 
+    /**
+     * 在 processingDir 的 config.yaml 内应用该 profile 绑定的自定义规则（ADR-001 方案 A Seq）。
+     * 任一步失败均抛异常且不写文件，调用方据此不执行后续拷贝，旧配置原样生效。
+     * 未配置自定义规则（空集）时直接返回，不触碰 config.yaml，不影响未使用该功能的用户。
+     */
+    private suspend fun applyRuleOverrides(context: Context, uuid: UUID) {
+        val overrides = RuleOverrideDao().queryByProfile(uuid)
+        if (overrides.isEmpty()) return
+
+        val rules = overrides.map { override ->
+            val type = RuleType.fromLiteral(override.ruleType)
+                ?: throw RuleOverrideException("未知规则类型：${override.ruleType}")
+            CustomRule(type, override.content, override.policy, override.position)
+        }
+
+        RuleOverrideApplier.applyToFile(context.processingDir.resolve("config.yaml"), rules)
+    }
+
     suspend fun delete(context: Context, uuid: UUID) {
         withContext(NonCancellable) {
             profileLock.withLock {
                 ImportedDao().remove(uuid)
                 PendingDao().remove(uuid)
+                RuleOverrideDao().removeByProfile(uuid)
 
                 val pending = context.pendingDir.resolve(uuid.toString())
                 val imported = context.importedDir.resolve(uuid.toString())

@@ -15,6 +15,7 @@ import com.github.kr328.clash.service.model.Profile
 import com.github.kr328.clash.service.model.RuleType
 import com.github.kr328.clash.service.override.RuleOverrideApplier
 import com.github.kr328.clash.service.override.RuleOverrideException
+import com.github.kr328.clash.service.override.RuleOverrideFailureTracker
 import com.github.kr328.clash.service.remote.IFetchObserver
 import com.github.kr328.clash.service.store.ServiceStore
 import com.github.kr328.clash.service.util.importedDir
@@ -190,8 +191,14 @@ object ProfileProcessor {
             CustomRule(type, override.content, override.policy, override.position)
         }
 
-        RuleOverrideApplier.applyToFile(context.processingDir.resolve("config.yaml"), rules) { dir ->
-            Clash.fetchAndValid(dir, source, force = false) {}.await()
+        try {
+            RuleOverrideApplier.applyToFile(context.processingDir.resolve("config.yaml"), rules) { dir ->
+                Clash.fetchAndValid(dir, source, force = false) {}.await()
+            }
+            RuleOverrideFailureTracker.onApplySucceeded(uuid, overrides)
+        } catch (e: Exception) {
+            RuleOverrideFailureTracker.onApplyFailed(uuid, overrides)
+            throw e
         }
     }
 
@@ -201,6 +208,7 @@ object ProfileProcessor {
                 ImportedDao().remove(uuid)
                 PendingDao().remove(uuid)
                 RuleOverrideDao().removeByProfile(uuid)
+                RuleOverrideFailureTracker.onProfileRemoved(uuid)
 
                 val pending = context.pendingDir.resolve(uuid.toString())
                 val imported = context.importedDir.resolve(uuid.toString())

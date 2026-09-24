@@ -95,6 +95,29 @@ class CustomRuleValidationTest {
         assertThrows(RuleSyntaxException::class.java) { rule.validate() }
     }
 
+    // ---- B2：校验失败按字段路由，不再靠中文文案子串匹配 ----
+
+    @Test
+    fun `content errors are routed to CONTENT field`() {
+        val rule = CustomRule(RuleType.IP_CIDR, "not-a-cidr", "DIRECT", RulePosition.APPEND)
+        val ex = assertThrows(RuleSyntaxException::class.java) { rule.validate() }
+        assertEquals(RuleValidationField.CONTENT, ex.field)
+    }
+
+    @Test
+    fun `policy errors are routed to POLICY field`() {
+        val rule = CustomRule(RuleType.DOMAIN, "example.com", "  ", RulePosition.APPEND)
+        val ex = assertThrows(RuleSyntaxException::class.java) { rule.validate() }
+        assertEquals(RuleValidationField.POLICY, ex.field)
+    }
+
+    @Test
+    fun `policy containing comma routed to POLICY field`() {
+        val rule = CustomRule(RuleType.DOMAIN, "example.com", "DIRECT,evil", RulePosition.APPEND)
+        val ex = assertThrows(RuleSyntaxException::class.java) { rule.validate() }
+        assertEquals(RuleValidationField.POLICY, ex.field)
+    }
+
     @Test
     fun `rule type literal round trip`() {
         RuleType.values().forEach { type ->

@@ -10,4 +10,5 @@
     <color name="color_light_control_disabled">#FFD3D3D3</color>
     <color name="color_dark_control_disabled">#FF808080</color>
     <color name="color_error">#FFB00020</color>
+    <color name="color_error_container">#33B00020</color>
 </resources>

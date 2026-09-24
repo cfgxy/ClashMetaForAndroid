@@ -391,4 +391,7 @@
     <string name="rule_position_append">Match last</string>
     <string name="rule_deleted">Rule deleted</string>
     <string name="undo">Undo</string>
+    <string name="rule_apply_failed_banner">%1$d rule(s) failed kernel validation and are temporarily disabled</string>
+    <string name="rule_apply_failed_view">View</string>
+    <string name="rule_apply_failed_badge">Validation failed</string>
 </resources>

@@ -17,6 +17,7 @@ import com.github.kr328.clash.service.model.RuleOverrideItem
 import com.github.kr328.clash.service.model.RulePosition
 import com.github.kr328.clash.service.model.RuleSyntaxException
 import com.github.kr328.clash.service.model.RuleType
+import com.github.kr328.clash.service.model.RuleValidationField
 import com.github.kr328.clash.service.model.validate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -37,6 +38,10 @@ class RuleOverridesDesign(context: android.content.Context) : Design<RuleOverrid
 
     private var allItems: List<RuleOverrideItem> = emptyList()
     private var keyword: String = ""
+    private var failedOnly: Boolean = false
+
+    private val bannerHeightPx: Int
+        get() = context.resources.getDimensionPixelSize(R.dimen.rule_overrides_banner_height)
 
     override val root: View
         get() = binding.root
@@ -62,13 +67,23 @@ class RuleOverridesDesign(context: android.content.Context) : Design<RuleOverrid
     }
 
     private suspend fun applyFilter() {
+        val failedCount = withContext(Dispatchers.Default) {
+            allItems.count { it.applyFailed }
+        }
+
         val filtered = withContext(Dispatchers.Default) {
-            if (keyword.isBlank())
-                allItems
-            else
-                allItems.filter {
-                    it.content.contains(keyword, ignoreCase = true) ||
-                        it.policy.contains(keyword, ignoreCase = true)
+            allItems
+                .let {
+                    if (keyword.isBlank())
+                        it
+                    else
+                        it.filter { item ->
+                            item.content.contains(keyword, ignoreCase = true) ||
+                                item.policy.contains(keyword, ignoreCase = true)
+                        }
+                }
+                .let {
+                    if (failedOnly) it.filter { item -> item.applyFailed } else it
                 }
         }
 
@@ -81,7 +96,41 @@ class RuleOverridesDesign(context: android.content.Context) : Design<RuleOverrid
 
             binding.emptyView.visibility = if (empty) View.VISIBLE else View.GONE
             binding.emptyDescView.visibility = if (empty) View.VISIBLE else View.GONE
+
+            val showBanner = failedCount > 0
+
+            binding.failedBannerView.visibility = if (showBanner) View.VISIBLE else View.GONE
+            binding.failedBannerTextView.text =
+                context.getString(R.string.rule_apply_failed_banner, failedCount)
+
+            // 顶栏（filter bar）高度固定，banner 是运行时才知道是否要显示的额外高度；
+            // layout_marginTop 在此布局的 LinearLayout 上没有可用的 databinding setter，
+            // 因此 banner 的定位和下方列表的 paddingTop 都在此处一并以命令式方式维护，
+            // 避免出现两套高度来源打架。
+            val topBarHeight = context.resources.getDimensionPixelSize(R.dimen.toolbar_height) +
+                context.resources.getDimensionPixelSize(R.dimen.rule_overrides_filter_bar_height) +
+                surface.insets.top
+
+            (binding.failedBannerView.layoutParams as? ViewGroup.MarginLayoutParams)?.let {
+                it.topMargin = topBarHeight
+                binding.failedBannerView.layoutParams = it
+            }
+
+            val extraPadding = if (showBanner) bannerHeightPx else 0
+
+            binding.recyclerList.setPadding(
+                binding.recyclerList.paddingLeft,
+                topBarHeight + extraPadding,
+                binding.recyclerList.paddingRight,
+                binding.recyclerList.paddingBottom,
+            )
         }
+    }
+
+    fun requestToggleFailedOnly() {
+        failedOnly = !failedOnly
+
+        launch { applyFilter() }
     }
 
     fun requestAdd() {
@@ -174,11 +223,16 @@ class RuleOverridesDesign(context: android.content.Context) : Design<RuleOverrid
                         binding.policyLayout.error = null
                         true
                     } catch (e: RuleSyntaxException) {
-                        val message = e.message.orEmpty()
-                        if (message.contains("策略"))
-                            binding.policyLayout.error = message
-                        else
-                            binding.contentLayout.error = message
+                        when (e.field) {
+                            RuleValidationField.POLICY -> {
+                                binding.policyLayout.error = context.getString(R.string.rule_policy_invalid)
+                                binding.contentLayout.error = null
+                            }
+                            RuleValidationField.CONTENT -> {
+                                binding.contentLayout.error = context.getString(R.string.rule_content_invalid)
+                                binding.policyLayout.error = null
+                            }
+                        }
                         false
                     }
                 }

@@ -7,6 +7,7 @@ import com.github.kr328.clash.service.data.Pending
 import com.github.kr328.clash.service.data.PendingDao
 import com.github.kr328.clash.service.data.RuleOverride
 import com.github.kr328.clash.service.data.RuleOverrideDao
+import com.github.kr328.clash.service.data.toEntity
 import com.github.kr328.clash.service.model.CustomRule
 import com.github.kr328.clash.service.model.Profile
 import com.github.kr328.clash.service.model.RulePosition
@@ -14,6 +15,7 @@ import com.github.kr328.clash.service.model.RuleOverrideItem
 import com.github.kr328.clash.service.model.RuleType
 import com.github.kr328.clash.service.model.validate
 import com.github.kr328.clash.service.override.RuleOverrideException
+import com.github.kr328.clash.service.override.RuleOverrideFailureTracker
 import com.github.kr328.clash.service.remote.IFetchObserver
 import com.github.kr328.clash.service.remote.IProfileManager
 import com.github.kr328.clash.service.store.ServiceStore
@@ -184,7 +186,9 @@ class ProfileManager(private val context: Context) : IProfileManager,
     }
 
     override suspend fun queryRuleOverrides(uuid: UUID): List<RuleOverrideItem> {
-        return RuleOverrideDao().queryByProfile(uuid).map { it.toItem() }
+        val failedIds = RuleOverrideFailureTracker.queryFailedIds(uuid)
+
+        return RuleOverrideDao().queryByProfile(uuid).map { it.toItem(applyFailed = it.id in failedIds) }
     }
 
     override suspend fun addRuleOverride(
@@ -231,6 +235,10 @@ class ProfileManager(private val context: Context) : IProfileManager,
 
     override suspend fun deleteRuleOverride(id: UUID) {
         RuleOverrideDao().remove(id)
+    }
+
+    override suspend fun restoreRuleOverride(item: RuleOverrideItem) {
+        RuleOverrideDao().insert(item.toEntity())
     }
 
     private suspend fun resolveProfile(uuid: UUID): Profile? {

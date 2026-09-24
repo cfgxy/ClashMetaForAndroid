@@ -32,4 +32,5 @@ interface IProfileManager {
 
     suspend fun updateRuleOverride(item: RuleOverrideItem)
     suspend fun deleteRuleOverride(id: UUID)
+    suspend fun restoreRuleOverride(item: RuleOverrideItem)
 }

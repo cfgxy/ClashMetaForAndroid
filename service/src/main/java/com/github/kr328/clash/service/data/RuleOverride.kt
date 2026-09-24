@@ -32,7 +32,7 @@ data class RuleOverride(
     // 编辑不改变位置（Review 结论 01a0d428 REVIEW NOTE：顺序语义须确定且可预期）。
     @ColumnInfo(name = "sortOrder") val sortOrder: Long,
 ) {
-    fun toItem(): RuleOverrideItem = RuleOverrideItem(
+    fun toItem(applyFailed: Boolean = false): RuleOverrideItem = RuleOverrideItem(
         id = id,
         profileUuid = profileUuid,
         position = position,
@@ -40,5 +40,21 @@ data class RuleOverride(
         content = content,
         policy = policy,
         sortOrder = sortOrder,
+        applyFailed = applyFailed,
     )
 }
+
+/**
+ * 按原 id、原 sortOrder 还原为持久化实体（Review 阻断项 B1：撤销删除需要精确复原被删条目
+ * 在其所属 position 分组内的顺序，不能走 [com.github.kr328.clash.service.ProfileManager.addRuleOverride]
+ * 的「追加到组末尾」语义，否则撤销会静默改变分流优先级）。
+ */
+fun RuleOverrideItem.toEntity(): RuleOverride = RuleOverride(
+    id = id,
+    profileUuid = profileUuid,
+    position = position,
+    ruleType = ruleType.literal,
+    content = content,
+    policy = policy,
+    sortOrder = sortOrder,
+)

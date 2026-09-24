@@ -44,6 +44,38 @@
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
             android:visibility="gone" />
 
+        <LinearLayout
+            android:id="@+id/failed_banner_view"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/rule_overrides_banner_height"
+            android:layout_gravity="top"
+            android:background="@color/color_error_container"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:onClick="@{() -> self.requestToggleFailedOnly()}"
+            android:orientation="horizontal"
+            android:paddingHorizontal="@dimen/item_header_margin"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/failed_banner_text_view"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/item_text_margin"
+                android:text="@string/rule_apply_failed_view"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <com.github.kr328.clash.design.view.ActivityBarLayout
             android:id="@+id/activity_bar_layout"
             android:layout_width="match_parent"

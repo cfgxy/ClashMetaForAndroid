@@ -16,6 +16,7 @@
     <dimen name="toolbar_elevation">5dp</dimen>
     <dimen name="toolbar_image_action_padding">5dp</dimen>
     <dimen name="rule_overrides_filter_bar_height">64dp</dimen>
+    <dimen name="rule_overrides_banner_height">40dp</dimen>
 
     <!--  Tab Layout  -->
     <dimen name="tab_layout_height">48dp</dimen>

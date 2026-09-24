@@ -24,6 +24,10 @@ data class RuleOverrideItem(
     val content: String,
     val policy: String,
     val sortOrder: Long,
+    // 上一次配置应用失败时为 true：内核校验拒绝该规则所在的合并结果，规则仍留在数据库
+    // 但从未生效（Review 阻断项 B3），由 [com.github.kr328.clash.service.override.RuleOverrideFailureTracker]
+    // 计算，非持久化列。
+    val applyFailed: Boolean = false,
 ) : Parcelable {
     override fun writeToParcel(parcel: Parcel, flags: Int) {
         Parcelizer.encodeToParcel(serializer(), parcel, this)

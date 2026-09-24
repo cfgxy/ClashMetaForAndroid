@@ -11,39 +11,48 @@ data class CustomRule(
     val position: RulePosition,
 )
 
-class RuleSyntaxException(message: String) : IllegalArgumentException(message)
+/**
+ * 校验失败字段枚举——供 UI 层路由错误到对应输入框并取本地化字符串资源，
+ * 替代此前按错误文案中的中文关键字子串判断字段归属的方式（该判断一旦文案进 string
+ * 资源并被本地化就会失效，且硬编码中文无法适配非中文 locale）。
+ */
+enum class RuleValidationField { CONTENT, POLICY }
+
+class RuleSyntaxException(val field: RuleValidationField, message: String) : IllegalArgumentException(message)
 
 /**
  * 规则内容/策略的语法级校验，覆盖「合法 mihomo 规则字面量」的最基本形态。
  * 不做语义校验（如 GEOIP 国家码是否真实存在、策略是否指向真实 proxy-group）——
  * 语义校验依赖内核，见 ADR-001 关于 Clash.load 不适用于本处的记录。
+ * 异常 message 保留中文技术细节供日志/调试使用；面向用户的文案由 UI 层按 [RuleSyntaxException.field]
+ * 取本地化字符串资源展示，不直接展示 message。
  */
 private val CIDR4_REGEX = Regex("^\\d{1,3}(\\.\\d{1,3}){3}/\\d{1,2}$")
 private val CIDR6_REGEX = Regex("^[0-9A-Fa-f:]+/\\d{1,3}$")
 private val PORT_REGEX = Regex("^\\d{1,5}$")
 
 fun CustomRule.validate() {
-    if (content.isBlank()) throw RuleSyntaxException("规则内容不能为空")
-    if (content.contains(',')) throw RuleSyntaxException("规则内容不能包含英文逗号：$content")
-    if (policy.isBlank()) throw RuleSyntaxException("目标策略不能为空")
-    if (policy.contains(',')) throw RuleSyntaxException("目标策略不能包含英文逗号：$policy")
+    if (content.isBlank()) throw RuleSyntaxException(RuleValidationField.CONTENT, "规则内容不能为空")
+    if (content.contains(',')) throw RuleSyntaxException(RuleValidationField.CONTENT, "规则内容不能包含英文逗号：$content")
+    if (policy.isBlank()) throw RuleSyntaxException(RuleValidationField.POLICY, "目标策略不能为空")
+    if (policy.contains(',')) throw RuleSyntaxException(RuleValidationField.POLICY, "目标策略不能包含英文逗号：$policy")
 
     when (ruleType) {
         RuleType.IP_CIDR -> {
             if (!CIDR4_REGEX.matches(content)) {
-                throw RuleSyntaxException("IP-CIDR 格式非法，应形如 192.168.0.0/16：$content")
+                throw RuleSyntaxException(RuleValidationField.CONTENT, "IP-CIDR 格式非法，应形如 192.168.0.0/16：$content")
             }
         }
 
         RuleType.IP_CIDR6 -> {
             if (!CIDR6_REGEX.matches(content)) {
-                throw RuleSyntaxException("IP-CIDR6 格式非法：$content")
+                throw RuleSyntaxException(RuleValidationField.CONTENT, "IP-CIDR6 格式非法：$content")
             }
         }
 
         RuleType.DST_PORT -> {
             if (!PORT_REGEX.matches(content) || content.toInt() !in 1..65535) {
-                throw RuleSyntaxException("DST-PORT 必须是 1-65535 的端口号：$content")
+                throw RuleSyntaxException(RuleValidationField.CONTENT, "DST-PORT 必须是 1-65535 的端口号：$content")
             }
         }
 
@@ -51,13 +60,13 @@ fun CustomRule.validate() {
             try {
                 Regex(content)
             } catch (e: Exception) {
-                throw RuleSyntaxException("DOMAIN-REGEX 不是合法正则表达式：$content")
+                throw RuleSyntaxException(RuleValidationField.CONTENT, "DOMAIN-REGEX 不是合法正则表达式：$content")
             }
         }
 
         RuleType.GEOIP -> {
             if (!Regex("^[A-Za-z]{2,}$").matches(content)) {
-                throw RuleSyntaxException("GEOIP 应为国家/地区代码（字母）：$content")
+                throw RuleSyntaxException(RuleValidationField.CONTENT, "GEOIP 应为国家/地区代码（字母）：$content")
             }
         }
 

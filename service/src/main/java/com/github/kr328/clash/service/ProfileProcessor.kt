@@ -55,7 +55,7 @@ object ProfileProcessor {
                 val force = snapshot.type != Profile.Type.File
                 val subscriptionInfo = fetchProfile(context, snapshot.source, force, callback)
 
-                applyRuleOverrides(context, snapshot.uuid)
+                applyRuleOverrides(context, snapshot.uuid, snapshot.source)
 
                 profileLock.withLock {
                     if (PendingDao().queryByUUID(snapshot.uuid) == snapshot) {
@@ -116,7 +116,7 @@ object ProfileProcessor {
 
                 val subscriptionInfo = fetchProfile(context, snapshot.source, true, callback)
 
-                applyRuleOverrides(context, snapshot.uuid)
+                applyRuleOverrides(context, snapshot.uuid, snapshot.source)
 
                 profileLock.withLock {
                     val imported = ImportedDao().queryByUUID(snapshot.uuid)
@@ -172,12 +172,17 @@ object ProfileProcessor {
 
     /**
      * 在 processingDir 的 config.yaml 内应用该 profile 绑定的自定义规则（ADR-001 方案 A Seq）。
-     * 任一步失败均抛异常且不写文件，调用方据此不执行后续拷贝，旧配置原样生效。
-     * 未配置自定义规则（空集）时直接返回，不触碰 config.yaml，不影响未使用该功能的用户。
+     * 合并前先剔除上一轮由本功能注入的行（RuleOverrideApplier 的 marker 机制），避免
+     * Type.File 类型 profile 因 force=false 不重新拉取而导致规则重复叠加（Review 阻断项 A1）。
+     * 合并写入后用 Clash.fetchAndValid(processingDir, source, force = false) 做一次内核级
+     * 重校验——该入口在 config.yaml 已存在时不重新下载、不调用 hub.ApplyConfig，不触碰运行中
+     * 内核，可发现策略名指向不存在 proxy-group 这类语义错误（Review 阻断项 A2）。
+     * 任一步失败均抛异常且不落地为有效变更（语法失败不写文件，内核校验失败回滚文件内容），
+     * 调用方据此不执行后续拷贝，旧配置原样生效。规则集为空且此前从未注入过时直接返回，
+     * 不触碰 config.yaml，不影响未使用该功能的用户。
      */
-    private suspend fun applyRuleOverrides(context: Context, uuid: UUID) {
+    private suspend fun applyRuleOverrides(context: Context, uuid: UUID, source: String) {
         val overrides = RuleOverrideDao().queryByProfile(uuid)
-        if (overrides.isEmpty()) return
 
         val rules = overrides.map { override ->
             val type = RuleType.fromLiteral(override.ruleType)
@@ -185,7 +190,9 @@ object ProfileProcessor {
             CustomRule(type, override.content, override.policy, override.position)
         }
 
-        RuleOverrideApplier.applyToFile(context.processingDir.resolve("config.yaml"), rules)
+        RuleOverrideApplier.applyToFile(context.processingDir.resolve("config.yaml"), rules) { dir ->
+            Clash.fetchAndValid(dir, source, force = false) {}.await()
+        }
     }
 
     suspend fun delete(context: Context, uuid: UUID) {

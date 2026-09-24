@@ -5,7 +5,15 @@ import com.github.kr328.clash.service.data.Database
 import com.github.kr328.clash.service.data.ImportedDao
 import com.github.kr328.clash.service.data.Pending
 import com.github.kr328.clash.service.data.PendingDao
+import com.github.kr328.clash.service.data.RuleOverride
+import com.github.kr328.clash.service.data.RuleOverrideDao
+import com.github.kr328.clash.service.model.CustomRule
 import com.github.kr328.clash.service.model.Profile
+import com.github.kr328.clash.service.model.RulePosition
+import com.github.kr328.clash.service.model.RuleOverrideItem
+import com.github.kr328.clash.service.model.RuleType
+import com.github.kr328.clash.service.model.validate
+import com.github.kr328.clash.service.override.RuleOverrideException
 import com.github.kr328.clash.service.remote.IFetchObserver
 import com.github.kr328.clash.service.remote.IProfileManager
 import com.github.kr328.clash.service.store.ServiceStore
@@ -173,6 +181,56 @@ class ProfileManager(private val context: Context) : IProfileManager,
 
     override suspend fun setActive(profile: Profile) {
         ProfileProcessor.active(context, profile.uuid)
+    }
+
+    override suspend fun queryRuleOverrides(uuid: UUID): List<RuleOverrideItem> {
+        return RuleOverrideDao().queryByProfile(uuid).map { it.toItem() }
+    }
+
+    override suspend fun addRuleOverride(
+        uuid: UUID,
+        ruleType: RuleType,
+        content: String,
+        policy: String,
+        position: RulePosition,
+    ): RuleOverrideItem {
+        CustomRule(ruleType, content, policy, position).validate()
+
+        val maxSortOrder = RuleOverrideDao().queryMaxSortOrder(uuid, position)
+
+        val entity = RuleOverride(
+            id = UUID.randomUUID(),
+            profileUuid = uuid,
+            position = position,
+            ruleType = ruleType.literal,
+            content = content,
+            policy = policy,
+            sortOrder = maxSortOrder + 1,
+        )
+
+        RuleOverrideDao().insert(entity)
+
+        return entity.toItem()
+    }
+
+    override suspend fun updateRuleOverride(item: RuleOverrideItem) {
+        CustomRule(item.ruleType, item.content, item.policy, item.position).validate()
+
+        val existing = RuleOverrideDao().queryById(item.id)
+            ?: throw RuleOverrideException("自定义规则不存在：${item.id}")
+
+        RuleOverrideDao().update(
+            existing.copy(
+                position = item.position,
+                ruleType = item.ruleType.literal,
+                content = item.content,
+                policy = item.policy,
+            )
+        )
+    }
+
+    override suspend fun deleteRuleOverride(id: UUID) {
+        RuleOverrideDao().remove(id)
     }
 
     private suspend fun resolveProfile(uuid: UUID): Profile? {

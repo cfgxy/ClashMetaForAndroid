@@ -371,4 +371,24 @@
     <string name="shortcut_start_long">Start Clash service</string>
     <string name="shortcut_stop_short">Stop Clash</string>
     <string name="shortcut_stop_long">Stop Clash service</string>
+
+    <string name="custom_rules">Custom Rules</string>
+    <string name="custom_rules_empty_title">No custom rules yet</string>
+    <string name="custom_rules_empty_desc">Tap \"+\" above to add your first rule</string>
+    <string name="custom_rules_filter_hint">Filter by content or policy</string>
+    <string name="custom_rule_add">Add Rule</string>
+    <string name="custom_rule_edit">Edit Rule</string>
+    <string name="rule_type">Rule Type</string>
+    <string name="rule_content">Rule Content</string>
+    <string name="rule_content_hint">Value matching the rule type, e.g. example.com</string>
+    <string name="rule_content_invalid">Invalid rule content for the selected type</string>
+    <string name="rule_policy">Target Policy</string>
+    <string name="rule_policy_hint">Proxy group name, or DIRECT / REJECT</string>
+    <string name="rule_policy_invalid">Target policy must not be blank or contain a comma</string>
+    <string name="rule_policy_candidates_unavailable">Proxy group list unavailable, enter the policy manually</string>
+    <string name="rule_position">Match Position</string>
+    <string name="rule_position_prepend">Match first</string>
+    <string name="rule_position_append">Match last</string>
+    <string name="rule_deleted">Rule deleted</string>
+    <string name="undo">Undo</string>
 </resources>

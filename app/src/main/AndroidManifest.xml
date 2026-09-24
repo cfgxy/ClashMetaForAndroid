@@ -128,6 +128,11 @@
             android:exported="false"
             android:label="@string/profile" />
         <activity
+            android:name=".RuleOverridesActivity"
+            android:configChanges="uiMode"
+            android:exported="false"
+            android:label="@string/custom_rules" />
+        <activity
             android:name=".ProxyActivity"
             android:configChanges="uiMode"
             android:exported="false"

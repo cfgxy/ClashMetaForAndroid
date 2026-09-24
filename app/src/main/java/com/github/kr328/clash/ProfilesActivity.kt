@@ -62,6 +62,8 @@ class ProfilesActivity : BaseActivity<ProfilesDesign>() {
                             withProfile { delete(it.profile.uuid) }
                         is ProfilesDesign.Request.Edit ->
                             startActivity(PropertiesActivity::class.intent.setUUID(it.profile.uuid))
+                        is ProfilesDesign.Request.RuleOverrides ->
+                            startActivity(RuleOverridesActivity::class.intent.setUUID(it.profile.uuid))
                         is ProfilesDesign.Request.Active -> {
                             withProfile {
                                 if (it.profile.imported)

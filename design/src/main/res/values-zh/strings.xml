@@ -280,4 +280,24 @@
     <string name="shortcut_start_long">启动 Clash 服务</string>
     <string name="shortcut_stop_short">停止 Clash</string>
     <string name="shortcut_stop_long">停止 Clash 服务</string>
+
+    <string name="custom_rules">自定义规则</string>
+    <string name="custom_rules_empty_title">暂无自定义规则</string>
+    <string name="custom_rules_empty_desc">点击右上角"+"添加第一条规则</string>
+    <string name="custom_rules_filter_hint">按规则内容或策略筛选</string>
+    <string name="custom_rule_add">新增规则</string>
+    <string name="custom_rule_edit">编辑规则</string>
+    <string name="rule_type">规则类型</string>
+    <string name="rule_content">规则内容</string>
+    <string name="rule_content_hint">与规则类型匹配的内容，如 example.com</string>
+    <string name="rule_content_invalid">规则内容不符合所选类型的格式</string>
+    <string name="rule_policy">目标策略</string>
+    <string name="rule_policy_hint">代理组名称，或 DIRECT / REJECT</string>
+    <string name="rule_policy_invalid">目标策略不能为空或包含英文逗号</string>
+    <string name="rule_policy_candidates_unavailable">无法获取代理组列表，请手动输入策略名称</string>
+    <string name="rule_position">匹配位置</string>
+    <string name="rule_position_prepend">优先匹配</string>
+    <string name="rule_position_append">兜底匹配</string>
+    <string name="rule_deleted">规则已删除</string>
+    <string name="undo">撤销</string>
 </resources>

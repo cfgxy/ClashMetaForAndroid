@@ -1,6 +1,9 @@
 package com.github.kr328.clash.service.remote
 
 import com.github.kr328.clash.service.model.Profile
+import com.github.kr328.clash.service.model.RulePosition
+import com.github.kr328.clash.service.model.RuleOverrideItem
+import com.github.kr328.clash.service.model.RuleType
 import com.github.kr328.kaidl.BinderInterface
 import java.util.*
 
@@ -17,4 +20,16 @@ interface IProfileManager {
     suspend fun queryAll(): List<Profile>
     suspend fun queryActive(): Profile?
     suspend fun setActive(profile: Profile)
+
+    suspend fun queryRuleOverrides(uuid: UUID): List<RuleOverrideItem>
+    suspend fun addRuleOverride(
+        uuid: UUID,
+        ruleType: RuleType,
+        content: String,
+        policy: String,
+        position: RulePosition,
+    ): RuleOverrideItem
+
+    suspend fun updateRuleOverride(item: RuleOverrideItem)
+    suspend fun deleteRuleOverride(id: UUID)
 }

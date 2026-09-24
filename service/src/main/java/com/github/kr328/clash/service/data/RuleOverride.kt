@@ -5,6 +5,9 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.TypeConverters
 import com.github.kr328.clash.service.model.RulePosition
+import com.github.kr328.clash.service.model.RuleOverrideItem
+import com.github.kr328.clash.service.model.RuleType
+import com.github.kr328.clash.service.override.RuleOverrideException
 import java.util.*
 
 /**
@@ -28,4 +31,14 @@ data class RuleOverride(
     // 同一 position 分组内按 sortOrder 升序排列；新增一律追加到所属分组末尾，
     // 编辑不改变位置（Review 结论 01a0d428 REVIEW NOTE：顺序语义须确定且可预期）。
     @ColumnInfo(name = "sortOrder") val sortOrder: Long,
-)
+) {
+    fun toItem(): RuleOverrideItem = RuleOverrideItem(
+        id = id,
+        profileUuid = profileUuid,
+        position = position,
+        ruleType = RuleType.fromLiteral(ruleType) ?: throw RuleOverrideException("未知规则类型：$ruleType"),
+        content = content,
+        policy = policy,
+        sortOrder = sortOrder,
+    )
+}

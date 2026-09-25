@@ -30,6 +30,11 @@ class AppBottomSheetDialog(context: Context) : BottomSheetDialog(context) {
         window!!.apply {
             isSystemBarsTranslucentCompat = true
             isAllowForceDarkCompat = false
+
+            // 弹层有自己的 Window，不继承 Activity 的 windowSoftInputMode。API 30 以下的
+            // IME inset 依赖 ADJUST_RESIZE 才会派发，这里显式声明，使下面的 ime() 避让
+            // 在全部受支持版本上一致生效（QA P2-A）。
+            setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
 
         findViewById<ViewGroup>(com.google.android.material.R.id.container)?.apply {
@@ -37,7 +42,9 @@ class AppBottomSheetDialog(context: Context) : BottomSheetDialog(context) {
         }
 
         findViewById<FrameLayout>(com.google.android.material.R.id.design_bottom_sheet)?.apply {
-            setOnInsertsChangedListener {
+            // avoidIme：弹层窗口 decorFitsSystemWindows = false，不随键盘收缩，底部留白
+            // 必须自行让出键盘高度，否则表单底部的确认按钮被键盘盖住且滚动不到（QA P2-A）。
+            setOnInsertsChangedListener(avoidIme = true) {
                 if (insets != it) {
                     insets = it
 

@@ -26,8 +26,38 @@ class RuleProviderReferencedException(val referenceCount: Int, message: String) 
 object RuleProviderOverrideApplier {
     private const val RULE_PROVIDERS_KEY = "rule-providers"
 
-    private fun markerFile(configFile: File): File =
+    internal fun markerFile(configFile: File): File =
         File(configFile.parentFile, ".${configFile.name}.rule_provider.marker")
+
+    /**
+     * 在已解析的 config.yaml 顶层 Map 上完成 rule-providers 段的「剔除上一轮 key + 写入本轮 key」
+     * 纯数据变换，不涉及文件读写与校验，供 [applyToFile] 与 [ProfileOverridesApplier] 共用。
+     */
+    internal fun mutateRoot(
+        root: MutableMap<String, Any?>,
+        providers: List<CustomRuleProvider>,
+        previousNames: List<String>,
+    ) {
+        @Suppress("UNCHECKED_CAST")
+        val existing: MutableMap<String, Any?> = when (val current = root[RULE_PROVIDERS_KEY]) {
+            is MutableMap<*, *> -> LinkedHashMap(current as Map<String, Any?>)
+            is Map<*, *> -> LinkedHashMap(current as Map<String, Any?>)
+            null -> LinkedHashMap()
+            else -> throw RuleOverrideException("config.yaml 的 rule-providers 字段不是 Mapping：${current::class}")
+        }
+
+        previousNames.forEach { existing.remove(it) }
+
+        for (provider in providers) {
+            existing[provider.name] = provider.toEntry()
+        }
+
+        if (existing.isEmpty()) {
+            root.remove(RULE_PROVIDERS_KEY)
+        } else {
+            root[RULE_PROVIDERS_KEY] = existing
+        }
+    }
 
     /**
      * @return 本次是否实际修改了 [configFile]（规则集定义与上一轮 marker 记录均为空时短路，返回 false）。
@@ -65,25 +95,7 @@ object RuleProviderOverrideApplier {
             else -> throw RuleOverrideException("config.yaml 顶层不是 Mapping，无法应用规则集定义")
         }
 
-        @Suppress("UNCHECKED_CAST")
-        val existing: MutableMap<String, Any?> = when (val current = root[RULE_PROVIDERS_KEY]) {
-            is MutableMap<*, *> -> LinkedHashMap(current as Map<String, Any?>)
-            is Map<*, *> -> LinkedHashMap(current as Map<String, Any?>)
-            null -> LinkedHashMap()
-            else -> throw RuleOverrideException("config.yaml 的 rule-providers 字段不是 Mapping：${current::class}")
-        }
-
-        previousNames.forEach { existing.remove(it) }
-
-        for (provider in providers) {
-            existing[provider.name] = provider.toEntry()
-        }
-
-        if (existing.isEmpty()) {
-            root.remove(RULE_PROVIDERS_KEY)
-        } else {
-            root[RULE_PROVIDERS_KEY] = existing
-        }
+        mutateRoot(root, providers, previousNames)
 
         val dump = Dump(DumpSettings.builder().build())
         val dumped = try {
@@ -106,7 +118,7 @@ object RuleProviderOverrideApplier {
         return true
     }
 
-    private fun CustomRuleProvider.toEntry(): Map<String, Any?> {
+    internal fun CustomRuleProvider.toEntry(): Map<String, Any?> {
         val entry = LinkedHashMap<String, Any?>()
         entry["type"] = type.literal
         entry["behavior"] = behavior.literal
@@ -119,7 +131,7 @@ object RuleProviderOverrideApplier {
         return entry
     }
 
-    private fun readMarker(marker: File): List<String> {
+    internal fun readMarker(marker: File): List<String> {
         if (!marker.isFile) return emptyList()
 
         return try {
@@ -136,7 +148,7 @@ object RuleProviderOverrideApplier {
         }
     }
 
-    private fun writeMarker(marker: File, names: List<String>) {
+    internal fun writeMarker(marker: File, names: List<String>) {
         if (names.isEmpty()) {
             marker.delete()
             return

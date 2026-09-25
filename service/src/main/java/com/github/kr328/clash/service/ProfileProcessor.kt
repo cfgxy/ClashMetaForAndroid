@@ -19,10 +19,9 @@ import com.github.kr328.clash.service.model.RuleProviderFormat
 import com.github.kr328.clash.service.model.RuleProviderType
 import com.github.kr328.clash.service.model.RuleProviderUpdateInterval
 import com.github.kr328.clash.service.model.RuleType
-import com.github.kr328.clash.service.override.RuleOverrideApplier
+import com.github.kr328.clash.service.override.ProfileOverridesApplier
 import com.github.kr328.clash.service.override.RuleOverrideException
 import com.github.kr328.clash.service.override.RuleOverrideFailureTracker
-import com.github.kr328.clash.service.override.RuleProviderOverrideApplier
 import com.github.kr328.clash.service.remote.IFetchObserver
 import com.github.kr328.clash.service.store.ServiceStore
 import com.github.kr328.clash.service.util.importedDir
@@ -179,15 +178,24 @@ object ProfileProcessor {
     }
 
     /**
-     * 在 processingDir 的 config.yaml 内应用该 profile 绑定的自定义规则（ADR-001 方案 A Seq）。
-     * 合并前先剔除上一轮由本功能注入的行（RuleOverrideApplier 的 marker 机制），避免
+     * 在 processingDir 的 config.yaml 内应用该 profile 绑定的自定义规则与规则集定义
+     * （ADR-001 方案 A Seq + 规则集 rule-providers 段）。
+     *
+     * 两段**必须在同一次写入与同一次内核校验内完成**（QA P1-A）：`RULE-SET,<name>,<policy>`
+     * 规则引用的是 rule-providers 段里的声明，分两次校验时先送校验的那一段看不到另一段，
+     * 内核必然报 `rule set [<name>] not found`，用户按标准流程建立的引用规则 100% 失效。
+     * 合并逻辑与顺序契约见 [ProfileOverridesApplier]。
+     *
+     * 幂等：合并前剔除上一轮由本功能注入的内容（两个 applier 各自的 marker 机制），避免
      * Type.File 类型 profile 因 force=false 不重新拉取而导致规则重复叠加（Review 阻断项 A1）。
-     * 合并写入后用 Clash.fetchAndValid(processingDir, source, force = false) 做一次内核级
-     * 重校验——该入口在 config.yaml 已存在时不重新下载、不调用 hub.ApplyConfig，不触碰运行中
-     * 内核，可发现策略名指向不存在 proxy-group 这类语义错误（Review 阻断项 A2）。
+     * 校验：写入后用 Clash.fetchAndValid(processingDir, source, force = false) 做内核级重校验——
+     * 该入口在 config.yaml 已存在时不重新下载、不调用 hub.ApplyConfig，不触碰运行中内核，
+     * 可发现策略名指向不存在 proxy-group 这类语义错误（Review 阻断项 A2）。
      * 任一步失败均抛异常且不落地为有效变更（语法失败不写文件，内核校验失败回滚文件内容），
-     * 调用方据此不执行后续拷贝，旧配置原样生效。规则集为空且此前从未注入过时直接返回，
-     * 不触碰 config.yaml，不影响未使用该功能的用户。
+     * 调用方据此不执行后续拷贝，旧配置原样生效。
+     *
+     * 失败记账（REVIEW NOTE 2）：`RuleOverrideFailureTracker` 的成败以**整次应用**为准——
+     * 规则集段失败同样计为失败，不再出现「规则集段失败而自定义规则被记为已生效」的错账。
      */
     private suspend fun applyRuleOverrides(context: Context, uuid: UUID, source: String) {
         val overrides = RuleOverrideDao().queryByProfile(uuid)
@@ -198,25 +206,6 @@ object ProfileProcessor {
             CustomRule(type, override.content, override.policy, override.position)
         }
 
-        try {
-            RuleOverrideApplier.applyToFile(context.processingDir.resolve("config.yaml"), rules) { dir ->
-                Clash.fetchAndValid(dir, source, force = false) {}.await()
-            }
-            RuleOverrideFailureTracker.onApplySucceeded(uuid, overrides)
-        } catch (e: Exception) {
-            RuleOverrideFailureTracker.onApplyFailed(uuid, overrides)
-            throw e
-        }
-
-        applyRuleProviders(context, uuid, source)
-    }
-
-    /**
-     * 在同一次 processingDir 校验流水线内，紧接自定义规则之后应用该 profile 绑定的规则集定义
-     * （分派卡真实 delta 一）。复用 [RuleOverrideApplier] 同款 marker 幂等 + 内核重校验回滚语义，
-     * 失败即整体不落地，旧配置原样生效。
-     */
-    private suspend fun applyRuleProviders(context: Context, uuid: UUID, source: String) {
         val providers = RuleProviderDao().queryByProfile(uuid).map { provider ->
             CustomRuleProvider(
                 name = provider.name,
@@ -231,8 +220,18 @@ object ProfileProcessor {
             )
         }
 
-        RuleProviderOverrideApplier.applyToFile(context.processingDir.resolve("config.yaml"), providers) { dir ->
-            Clash.fetchAndValid(dir, source, force = false) {}.await()
+        try {
+            ProfileOverridesApplier.applyToFile(
+                context.processingDir.resolve("config.yaml"),
+                rules,
+                providers,
+            ) { dir ->
+                Clash.fetchAndValid(dir, source, force = false) {}.await()
+            }
+            RuleOverrideFailureTracker.onApplySucceeded(uuid, overrides)
+        } catch (e: Exception) {
+            RuleOverrideFailureTracker.onApplyFailed(uuid, overrides)
+            throw e
         }
     }
 

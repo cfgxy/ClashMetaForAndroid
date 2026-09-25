@@ -35,17 +35,11 @@ class RuleOverrideException(message: String, cause: Throwable? = null) : Excepti
 object RuleOverrideApplier {
     private const val RULES_KEY = "rules"
 
-    private fun markerFile(configFile: File): File =
+    internal fun markerFile(configFile: File): File =
         File(configFile.parentFile, ".${configFile.name}.rule_override.marker")
 
-    /**
-     * @return 本次是否实际修改了 [configFile]（规则集与上一轮 marker 记录均为空时短路，返回 false）。
-     */
-    suspend fun applyToFile(
-        configFile: File,
-        rules: List<CustomRule>,
-        validate: suspend (File) -> Unit = {},
-    ): Boolean {
+    /** 本轮要注入的 prepend/append 规则行，格式化失败即抛 [RuleOverrideException]。 */
+    internal fun formatLines(rules: List<CustomRule>): Pair<List<String>, List<String>> {
         val prependLines = ArrayList<String>()
         val appendLines = ArrayList<String>()
         for (rule in rules) {
@@ -59,6 +53,40 @@ object RuleOverrideApplier {
                 RulePosition.APPEND -> appendLines.add(line)
             }
         }
+        return prependLines to appendLines
+    }
+
+    /**
+     * 在已解析的 config.yaml 顶层 Map 上完成「剔除上一轮注入 + 注入本轮」的纯数据变换，
+     * 不涉及文件读写与校验，供 [applyToFile] 与 [ProfileOverridesApplier] 共用。
+     */
+    internal fun mutateRoot(
+        root: MutableMap<String, Any?>,
+        prependLines: List<String>,
+        appendLines: List<String>,
+        previousPrepend: List<String>,
+        previousAppend: List<String>,
+    ) {
+        val existing: List<Any?> = when (val current = root[RULES_KEY]) {
+            is List<*> -> current
+            null -> emptyList()
+            else -> throw RuleOverrideException("config.yaml 的 rules 字段不是列表：${current::class}")
+        }
+
+        root[RULES_KEY] = stripInjected(existing, previousPrepend, previousAppend)
+
+        RuleSeq.apply(root, prependLines, appendLines)
+    }
+
+    /**
+     * @return 本次是否实际修改了 [configFile]（规则集与上一轮 marker 记录均为空时短路，返回 false）。
+     */
+    suspend fun applyToFile(
+        configFile: File,
+        rules: List<CustomRule>,
+        validate: suspend (File) -> Unit = {},
+    ): Boolean {
+        val (prependLines, appendLines) = formatLines(rules)
 
         val marker = markerFile(configFile)
         val (previousPrepend, previousAppend) = readMarker(marker)
@@ -90,15 +118,7 @@ object RuleOverrideApplier {
             else -> throw RuleOverrideException("config.yaml 顶层不是 Mapping，无法应用自定义规则")
         }
 
-        val existing: List<Any?> = when (val current = root[RULES_KEY]) {
-            is List<*> -> current
-            null -> emptyList()
-            else -> throw RuleOverrideException("config.yaml 的 rules 字段不是列表：${current::class}")
-        }
-
-        root[RULES_KEY] = stripInjected(existing, previousPrepend, previousAppend)
-
-        RuleSeq.apply(root, prependLines, appendLines)
+        mutateRoot(root, prependLines, appendLines, previousPrepend, previousAppend)
 
         val dump = Dump(DumpSettings.builder().build())
         val dumped = try {
@@ -150,7 +170,7 @@ object RuleOverrideApplier {
         return result
     }
 
-    private fun readMarker(marker: File): Pair<List<String>, List<String>> {
+    internal fun readMarker(marker: File): Pair<List<String>, List<String>> {
         if (!marker.isFile) return emptyList<String>() to emptyList()
 
         return try {
@@ -170,7 +190,7 @@ object RuleOverrideApplier {
         }
     }
 
-    private fun writeMarker(marker: File, prependLines: List<String>, appendLines: List<String>) {
+    internal fun writeMarker(marker: File, prependLines: List<String>, appendLines: List<String>) {
         if (prependLines.isEmpty() && appendLines.isEmpty()) {
             marker.delete()
             return

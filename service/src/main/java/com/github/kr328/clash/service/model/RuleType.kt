@@ -18,7 +18,10 @@ enum class RuleType(val literal: String) {
     IP_ASN("IP-ASN"),
     PROCESS_NAME("PROCESS-NAME"),
     PROCESS_PATH("PROCESS-PATH"),
-    DST_PORT("DST-PORT");
+    DST_PORT("DST-PORT"),
+    // 裁定一（RUYI-176 规则集管理）纳入：content 取值为规则集名称，引用一个 rule-providers
+    // 声明的规则集；GUI 层用下拉选择而非自由文本，从结构上消除引用不存在规则集的可能。
+    RULE_SET("RULE-SET");
 
     companion object {
         fun fromLiteral(literal: String): RuleType? = entries.find { it.literal == literal }

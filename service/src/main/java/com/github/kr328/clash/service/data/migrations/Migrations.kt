@@ -32,9 +32,37 @@ private val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+private val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `rule_provider` (
+                `id` TEXT NOT NULL,
+                `profileUuid` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `type` TEXT NOT NULL,
+                `behavior` TEXT NOT NULL,
+                `format` TEXT NOT NULL,
+                `url` TEXT NOT NULL,
+                `updateIntervalSeconds` INTEGER,
+                `sortOrder` INTEGER NOT NULL,
+                PRIMARY KEY(`id`)
+            )
+            """.trimIndent()
+        )
+        database.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_rule_provider_profileUuid` ON `rule_provider` (`profileUuid`)"
+        )
+        database.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_rule_provider_profileUuid_name` ON `rule_provider` (`profileUuid`, `name`)"
+        )
+    }
+}
+
 val MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
+    MIGRATION_3_4,
 )
 
 val LEGACY_MIGRATION = ::migrationFromLegacy

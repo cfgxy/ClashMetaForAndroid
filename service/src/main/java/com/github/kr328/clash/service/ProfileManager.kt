@@ -7,15 +7,28 @@ import com.github.kr328.clash.service.data.Pending
 import com.github.kr328.clash.service.data.PendingDao
 import com.github.kr328.clash.service.data.RuleOverride
 import com.github.kr328.clash.service.data.RuleOverrideDao
+import com.github.kr328.clash.service.data.RuleProvider
+import com.github.kr328.clash.service.data.RuleProviderDao
 import com.github.kr328.clash.service.data.toEntity
 import com.github.kr328.clash.service.model.CustomRule
+import com.github.kr328.clash.service.model.CustomRuleProvider
 import com.github.kr328.clash.service.model.Profile
 import com.github.kr328.clash.service.model.RulePosition
 import com.github.kr328.clash.service.model.RuleOverrideItem
+import com.github.kr328.clash.service.model.RuleProviderBehavior
+import com.github.kr328.clash.service.model.RuleProviderFormat
+import com.github.kr328.clash.service.model.RuleProviderItem
+import com.github.kr328.clash.service.model.RuleProviderSyntaxException
+import com.github.kr328.clash.service.model.RuleProviderType
+import com.github.kr328.clash.service.model.RuleProviderUpdateInterval
+import com.github.kr328.clash.service.model.RuleProviderValidationField
+import com.github.kr328.clash.service.model.RuleSyntaxException
 import com.github.kr328.clash.service.model.RuleType
+import com.github.kr328.clash.service.model.RuleValidationField
 import com.github.kr328.clash.service.model.validate
 import com.github.kr328.clash.service.override.RuleOverrideException
 import com.github.kr328.clash.service.override.RuleOverrideFailureTracker
+import com.github.kr328.clash.service.override.RuleProviderReferencedException
 import com.github.kr328.clash.service.remote.IFetchObserver
 import com.github.kr328.clash.service.remote.IProfileManager
 import com.github.kr328.clash.service.store.ServiceStore
@@ -199,6 +212,7 @@ class ProfileManager(private val context: Context) : IProfileManager,
         position: RulePosition,
     ): RuleOverrideItem {
         CustomRule(ruleType, content, policy, position).validate()
+        validateRuleSetReference(uuid, ruleType, content)
 
         val maxSortOrder = RuleOverrideDao().queryMaxSortOrder(uuid, position)
 
@@ -219,6 +233,7 @@ class ProfileManager(private val context: Context) : IProfileManager,
 
     override suspend fun updateRuleOverride(item: RuleOverrideItem) {
         CustomRule(item.ruleType, item.content, item.policy, item.position).validate()
+        validateRuleSetReference(item.profileUuid, item.ruleType, item.content)
 
         val existing = RuleOverrideDao().queryById(item.id)
             ?: throw RuleOverrideException("自定义规则不存在：${item.id}")
@@ -239,6 +254,110 @@ class ProfileManager(private val context: Context) : IProfileManager,
 
     override suspend fun restoreRuleOverride(item: RuleOverrideItem) {
         RuleOverrideDao().insert(item.toEntity())
+    }
+
+    override suspend fun queryRuleProviders(uuid: UUID): List<RuleProviderItem> {
+        val dao = RuleProviderDao()
+
+        return dao.queryByProfile(uuid).map {
+            it.toItem(referenced = dao.countReferences(uuid, it.name) > 0)
+        }
+    }
+
+    override suspend fun addRuleProvider(
+        uuid: UUID,
+        name: String,
+        type: RuleProviderType,
+        behavior: RuleProviderBehavior,
+        format: RuleProviderFormat,
+        url: String,
+        updateInterval: RuleProviderUpdateInterval,
+    ): RuleProviderItem {
+        CustomRuleProvider(name, type, behavior, format, url, updateInterval).validate()
+
+        val dao = RuleProviderDao()
+
+        if (dao.queryByName(uuid, name) != null) {
+            throw RuleProviderSyntaxException(RuleProviderValidationField.NAME, "规则集名称在当前配置内已存在：$name")
+        }
+
+        val maxSortOrder = dao.queryMaxSortOrder(uuid)
+
+        val entity = RuleProvider(
+            id = UUID.randomUUID(),
+            profileUuid = uuid,
+            name = name,
+            type = type.literal,
+            behavior = behavior.literal,
+            format = format.literal,
+            url = url,
+            updateIntervalSeconds = updateInterval.seconds,
+            sortOrder = maxSortOrder + 1,
+        )
+
+        dao.insert(entity)
+
+        return entity.toItem()
+    }
+
+    override suspend fun updateRuleProvider(item: RuleProviderItem) {
+        CustomRuleProvider(item.name, item.type, item.behavior, item.format, item.url, item.updateInterval).validate()
+
+        val dao = RuleProviderDao()
+        val existing = dao.queryById(item.id)
+            ?: throw RuleOverrideException("规则集不存在：${item.id}")
+
+        dao.queryByName(item.profileUuid, item.name)?.let {
+            if (it.id != item.id) {
+                throw RuleProviderSyntaxException(RuleProviderValidationField.NAME, "规则集名称在当前配置内已存在：${item.name}")
+            }
+        }
+
+        dao.update(
+            existing.copy(
+                name = item.name,
+                type = item.type.literal,
+                behavior = item.behavior.literal,
+                format = item.format.literal,
+                url = item.url,
+                updateIntervalSeconds = item.updateInterval.seconds,
+            )
+        )
+    }
+
+    override suspend fun deleteRuleProvider(id: UUID, force: Boolean) {
+        val dao = RuleProviderDao()
+        val existing = dao.queryById(id)
+            ?: throw RuleOverrideException("规则集不存在：$id")
+
+        val referenceCount = dao.countReferences(existing.profileUuid, existing.name)
+
+        if (referenceCount > 0) {
+            if (!force) {
+                throw RuleProviderReferencedException(
+                    referenceCount,
+                    "规则集「${existing.name}」仍被 $referenceCount 条自定义规则引用，无法直接删除",
+                )
+            }
+
+            dao.clearReferences(existing.profileUuid, existing.name)
+        }
+
+        dao.remove(id)
+    }
+
+    /**
+     * RULE-SET 规则的语义校验：content 必须真实指向该 profile 已声明的规则集。
+     * [CustomRule.validate] 只做字符集校验（纯 Kotlin，不依赖 Room），
+     * 存在性校验放在此处（有 DB 访问能力的服务层），从而在结构上保证
+     * 「GUI 下拉选择」与「服务层落库」两条路径都无法引用未声明的规则集。
+     */
+    private suspend fun validateRuleSetReference(profileUuid: UUID, ruleType: RuleType, content: String) {
+        if (ruleType != RuleType.RULE_SET) return
+
+        if (RuleProviderDao().queryByName(profileUuid, content) == null) {
+            throw RuleSyntaxException(RuleValidationField.CONTENT, "规则集不存在：$content")
+        }
     }
 
     private suspend fun resolveProfile(uuid: UUID): Profile? {

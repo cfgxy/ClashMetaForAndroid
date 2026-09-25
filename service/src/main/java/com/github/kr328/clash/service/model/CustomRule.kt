@@ -70,6 +70,15 @@ fun CustomRule.validate() {
             }
         }
 
+        RuleType.RULE_SET -> {
+            // 语法层只校验字符集（与规则集命名白名单一致）；content 是否真实指向已声明的
+            // 规则集属语义校验，由 ProfileManager.addRuleOverride/updateRuleOverride 在有
+            // DB 访问能力的服务层完成——本函数不依赖 Android/Room，拿不到 profile 的规则集清单。
+            if (!Regex("^[A-Za-z0-9_-]{1,64}$").matches(content)) {
+                throw RuleSyntaxException(RuleValidationField.CONTENT, "RULE-SET 应为规则集名称：$content")
+            }
+        }
+
         else -> {
             // DOMAIN / DOMAIN-SUFFIX / DOMAIN-KEYWORD / IP-ASN / PROCESS-NAME / PROCESS-PATH：
             // 非空且不含逗号即满足语法要求，已在上方统一校验。

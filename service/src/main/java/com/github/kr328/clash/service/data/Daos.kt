@@ -15,3 +15,7 @@ fun SelectionDao(): SelectionDao {
 fun RuleOverrideDao(): RuleOverrideDao {
     return Database.database.openRuleOverrideDao()
 }
+
+fun RuleProviderDao(): RuleProviderDao {
+    return Database.database.openRuleProviderDao()
+}

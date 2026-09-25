@@ -10,12 +10,19 @@ import com.github.kr328.clash.service.data.ImportedDao
 import com.github.kr328.clash.service.data.Pending
 import com.github.kr328.clash.service.data.PendingDao
 import com.github.kr328.clash.service.data.RuleOverrideDao
+import com.github.kr328.clash.service.data.RuleProviderDao
 import com.github.kr328.clash.service.model.CustomRule
+import com.github.kr328.clash.service.model.CustomRuleProvider
 import com.github.kr328.clash.service.model.Profile
+import com.github.kr328.clash.service.model.RuleProviderBehavior
+import com.github.kr328.clash.service.model.RuleProviderFormat
+import com.github.kr328.clash.service.model.RuleProviderType
+import com.github.kr328.clash.service.model.RuleProviderUpdateInterval
 import com.github.kr328.clash.service.model.RuleType
 import com.github.kr328.clash.service.override.RuleOverrideApplier
 import com.github.kr328.clash.service.override.RuleOverrideException
 import com.github.kr328.clash.service.override.RuleOverrideFailureTracker
+import com.github.kr328.clash.service.override.RuleProviderOverrideApplier
 import com.github.kr328.clash.service.remote.IFetchObserver
 import com.github.kr328.clash.service.store.ServiceStore
 import com.github.kr328.clash.service.util.importedDir
@@ -200,6 +207,33 @@ object ProfileProcessor {
             RuleOverrideFailureTracker.onApplyFailed(uuid, overrides)
             throw e
         }
+
+        applyRuleProviders(context, uuid, source)
+    }
+
+    /**
+     * 在同一次 processingDir 校验流水线内，紧接自定义规则之后应用该 profile 绑定的规则集定义
+     * （分派卡真实 delta 一）。复用 [RuleOverrideApplier] 同款 marker 幂等 + 内核重校验回滚语义，
+     * 失败即整体不落地，旧配置原样生效。
+     */
+    private suspend fun applyRuleProviders(context: Context, uuid: UUID, source: String) {
+        val providers = RuleProviderDao().queryByProfile(uuid).map { provider ->
+            CustomRuleProvider(
+                name = provider.name,
+                type = RuleProviderType.fromLiteral(provider.type)
+                    ?: throw RuleOverrideException("未知规则集类型：${provider.type}"),
+                behavior = RuleProviderBehavior.fromLiteral(provider.behavior)
+                    ?: throw RuleOverrideException("未知规则集匹配语义：${provider.behavior}"),
+                format = RuleProviderFormat.fromLiteral(provider.format)
+                    ?: throw RuleOverrideException("未知规则集格式：${provider.format}"),
+                url = provider.url,
+                updateInterval = RuleProviderUpdateInterval.fromSeconds(provider.updateIntervalSeconds),
+            )
+        }
+
+        RuleProviderOverrideApplier.applyToFile(context.processingDir.resolve("config.yaml"), providers) { dir ->
+            Clash.fetchAndValid(dir, source, force = false) {}.await()
+        }
     }
 
     suspend fun delete(context: Context, uuid: UUID) {
@@ -209,6 +243,7 @@ object ProfileProcessor {
                 PendingDao().remove(uuid)
                 RuleOverrideDao().removeByProfile(uuid)
                 RuleOverrideFailureTracker.onProfileRemoved(uuid)
+                RuleProviderDao().removeByProfile(uuid)
 
                 val pending = context.pendingDir.resolve(uuid.toString())
                 val imported = context.importedDir.resolve(uuid.toString())

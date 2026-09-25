@@ -253,6 +253,10 @@ class ProfileManager(private val context: Context) : IProfileManager,
     }
 
     override suspend fun restoreRuleOverride(item: RuleOverrideItem) {
+        // 撤销删除与新增/编辑同口径：期间规则集可能已被「清空引用并删除」移除，
+        // 此时原样还原会写回一条指向不存在规则集的 RULE-SET 规则。
+        validateRuleSetReference(item.profileUuid, item.ruleType, item.content)
+
         RuleOverrideDao().insert(item.toEntity())
     }
 

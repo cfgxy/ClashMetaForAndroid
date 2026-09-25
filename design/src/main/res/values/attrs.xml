@@ -5,6 +5,12 @@
     <attr name="colorClashStopped" format="color" />
     <attr name="colorControlDisabled" format="color" />
     <attr name="colorLogo" format="color" />
+    <!-- 错误态容器底色（失败 banner 背景）。深浅色各一份，随 AppThemeLight/AppThemeDark 切换——
+         BaseActivity.applyDayNight 是以 theme.applyStyle 手动应用主题的，
+         values-night 资源限定符在「强制深色」时不会生效，必须走主题属性。 -->
+    <attr name="colorErrorContainerCompat" format="color" />
+    <!-- 信息态容器底色（更新全部进度 banner 背景），与 colorErrorContainerCompat 同理走主题属性。 -->
+    <attr name="colorPrimaryContainerCompat" format="color" />
 
     <attr name="enabled" format="boolean" />
     <attr name="text" format="string" />

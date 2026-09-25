@@ -96,6 +96,26 @@ class CustomRuleProviderValidationTest {
         provider.validate()
     }
 
+    // ---- INLINE 的内容载体是 config.yaml 里的 payload 列表，本版本没有 payload 编辑入口 ----
+
+    @Test
+    fun `inline type rejected regardless of url`() {
+        listOf("", "https://example.com/ads.yaml").forEach { url ->
+            val ex = assertThrows(RuleProviderSyntaxException::class.java) {
+                httpProvider(url = url).copy(type = RuleProviderType.INLINE).validate()
+            }
+            assertEquals(RuleProviderValidationField.TYPE, ex.field)
+        }
+    }
+
+    /** UI 候选集与领域校验同源：下拉里不出现 INLINE，服务层同时硬拒，不依赖 UI 自觉过滤。 */
+    @Test
+    fun `selectable types exclude inline`() {
+        assertFalse(RuleProviderType.selectable.contains(RuleProviderType.INLINE))
+        assertTrue(RuleProviderType.selectable.contains(RuleProviderType.HTTP))
+        assertTrue(RuleProviderType.selectable.contains(RuleProviderType.FILE))
+    }
+
     @Test
     fun `derivedPath is determined by name and format`() {
         val provider = httpProvider(name = "ads").copy(format = RuleProviderFormat.MRS)

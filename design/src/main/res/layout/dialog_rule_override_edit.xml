@@ -7,6 +7,13 @@
             type="boolean" />
     </data>
 
+    <!-- 软键盘弹起时（Activity 侧 windowSoftInputMode=adjustResize）弹层高度被压缩，
+         表单需要能在弹层内自行滚动，否则底部的保存按钮会被键盘永久遮住。 -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="true">
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -49,12 +56,15 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/item_text_margin"
             android:hint="@string/rule_content"
+            app:endIconDrawable="@drawable/ic_baseline_arrow_drop_down"
+            app:endIconMode="none"
             app:errorEnabled="true">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/content_field"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:clickable="true" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
@@ -132,4 +142,5 @@
                 android:text="@string/save" />
         </LinearLayout>
     </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 </layout>

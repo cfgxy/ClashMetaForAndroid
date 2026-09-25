@@ -64,6 +64,8 @@ class ProfilesActivity : BaseActivity<ProfilesDesign>() {
                             startActivity(PropertiesActivity::class.intent.setUUID(it.profile.uuid))
                         is ProfilesDesign.Request.RuleOverrides ->
                             startActivity(RuleOverridesActivity::class.intent.setUUID(it.profile.uuid))
+                        is ProfilesDesign.Request.RuleProviders ->
+                            startActivity(RuleProvidersActivity::class.intent.setUUID(it.profile.uuid))
                         is ProfilesDesign.Request.Active -> {
                             withProfile {
                                 if (it.profile.imported)

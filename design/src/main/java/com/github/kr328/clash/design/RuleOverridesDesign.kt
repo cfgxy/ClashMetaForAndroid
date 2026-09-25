@@ -190,6 +190,7 @@ class RuleOverridesDesign(context: android.content.Context) : Design<RuleOverrid
     suspend fun showRuleEditor(
         existing: RuleOverrideItem?,
         policyCandidates: List<String>,
+        ruleSetCandidates: List<String>,
     ): CustomRule? {
         return withContext(Dispatchers.Main) {
             suspendCancellableCoroutine { ctx ->
@@ -203,10 +204,59 @@ class RuleOverridesDesign(context: android.content.Context) : Design<RuleOverrid
                 var selectedType = existing?.ruleType ?: RuleType.DOMAIN
                 var selectedPosition = existing?.position ?: RulePosition.PREPEND
 
+                // RULE-SET 的 content 必须指向当前配置已声明的规则集（服务层
+                // ProfileManager.validateRuleSetReference 强制），自由文本必然保存失败；
+                // 因此当前配置没有任何规则集时，类型下拉里直接不出现 RULE-SET
+                // ——不给用户一个必定失败的分支。仅当正在编辑的规则本身已是 RULE-SET 时
+                // 才保留该项（否则编辑框会显示一个下拉里不存在的类型）。
+                val selectableTypes = RuleType.entries.filter {
+                    it != RuleType.RULE_SET ||
+                        ruleSetCandidates.isNotEmpty() ||
+                        existing?.ruleType == RuleType.RULE_SET
+                }
+
                 fun typeLabel(type: RuleType) = type.literal
 
                 fun refreshTypeField() {
                     binding.typeField.setText(typeLabel(selectedType))
+                }
+
+                /**
+                 * RULE-SET 走「只读输入框 + 规则集下拉」，其余类型走自由文本，
+                 * 结构上消除「填了一个不存在的规则集名」的可能。
+                 */
+                fun refreshContentMode(autoFill: Boolean) {
+                    val ruleSet = selectedType == RuleType.RULE_SET
+
+                    binding.contentField.isFocusable = !ruleSet
+                    binding.contentField.isFocusableInTouchMode = !ruleSet
+                    binding.contentField.isCursorVisible = !ruleSet
+                    binding.contentLayout.hint = context.getString(
+                        if (ruleSet) R.string.rule_content_rule_set else R.string.rule_content
+                    )
+                    binding.contentLayout.endIconMode = if (ruleSet)
+                        com.google.android.material.textfield.TextInputLayout.END_ICON_CUSTOM
+                    else
+                        com.google.android.material.textfield.TextInputLayout.END_ICON_NONE
+
+                    if (autoFill && ruleSet && binding.contentField.text?.toString() !in ruleSetCandidates) {
+                        binding.contentField.setText(ruleSetCandidates.firstOrNull().orEmpty())
+                    }
+                }
+
+                fun showRuleSetPopup() {
+                    if (ruleSetCandidates.isEmpty()) return
+
+                    val popup = ListPopupWindow(context)
+                    val current = ruleSetCandidates.indexOf(binding.contentField.text?.toString())
+
+                    popup.anchorView = binding.contentLayout
+                    popup.setAdapter(PopupListAdapter(context, ruleSetCandidates, current))
+                    popup.setOnItemClickListener { _, _, position, _ ->
+                        binding.contentField.setText(ruleSetCandidates[position])
+                        popup.dismiss()
+                    }
+                    popup.show()
                 }
 
                 fun currentRule() = CustomRule(
@@ -217,6 +267,18 @@ class RuleOverridesDesign(context: android.content.Context) : Design<RuleOverrid
                 )
 
                 fun validateAndShowErrors(): Boolean {
+                    if (selectedType == RuleType.RULE_SET &&
+                        binding.contentField.text?.toString() !in ruleSetCandidates
+                    ) {
+                        // 唯一能走到这里的情形：编辑一条 RULE-SET 规则，而它引用的规则集
+                        // 已被删除（列表页「清空引用并删除」之外的路径不会留下这种规则）。
+                        // 明确置为不可保存并给出可读提示，而不是放行到服务层再抛异常。
+                        binding.contentLayout.error =
+                            context.getString(R.string.rule_content_rule_set_unavailable)
+                        binding.policyLayout.error = null
+                        return false
+                    }
+
                     return try {
                         currentRule().validate()
                         binding.contentLayout.error = null
@@ -239,6 +301,9 @@ class RuleOverridesDesign(context: android.content.Context) : Design<RuleOverrid
 
                 refreshTypeField()
                 binding.contentField.setText(existing?.content.orEmpty())
+                // 初始化不自动改写既有内容：编辑一条引用已删除规则集的旧规则时，
+                // 原值要保留下来配合错误提示，而不是被悄悄换成另一个规则集。
+                refreshContentMode(autoFill = existing == null)
                 binding.policyField.setText(existing?.policy.orEmpty())
 
                 when (selectedPosition) {
@@ -250,7 +315,7 @@ class RuleOverridesDesign(context: android.content.Context) : Design<RuleOverrid
                     if (policyCandidates.isEmpty()) View.VISIBLE else View.GONE
 
                 binding.typeField.setOnClickListener {
-                    val types = RuleType.entries
+                    val types = selectableTypes
                     val popup = ListPopupWindow(context)
 
                     popup.anchorView = binding.typeLayout
@@ -264,10 +329,16 @@ class RuleOverridesDesign(context: android.content.Context) : Design<RuleOverrid
                     popup.setOnItemClickListener { _, _, position, _ ->
                         selectedType = types[position]
                         refreshTypeField()
+                        refreshContentMode(autoFill = true)
                         validateAndShowErrors()
                         popup.dismiss()
                     }
                     popup.show()
+                }
+
+                binding.contentLayout.setEndIconOnClickListener { showRuleSetPopup() }
+                binding.contentField.setOnClickListener {
+                    if (selectedType == RuleType.RULE_SET) showRuleSetPopup()
                 }
 
                 if (policyCandidates.isNotEmpty()) {

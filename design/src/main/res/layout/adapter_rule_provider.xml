@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android">
+    <data>
+        <variable
+            name="state"
+            type="com.github.kr328.clash.design.model.RuleProviderState" />
+        <!-- 徽标与元信息文案在 adapter 里按当前 locale 组装（涉及 behavior 的中文短名与
+             相对时间），不在布局表达式里拼字符串。 -->
+        <variable
+            name="typeBadge"
+            type="String" />
+        <variable
+            name="behaviorBadge"
+            type="String" />
+        <variable
+            name="meta"
+            type="String" />
+        <variable
+            name="clicked"
+            type="android.view.View.OnClickListener" />
+        <variable
+            name="refresh"
+            type="android.view.View.OnClickListener" />
+        <variable
+            name="menu"
+            type="android.view.View.OnClickListener" />
+
+        <import type="android.view.View" />
+    </data>
+
+    <RelativeLayout
+        android:id="@+id/root_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/item_header_margin"
+        android:layout_marginVertical="@dimen/main_card_margin_vertical"
+        android:alpha="@{state.queued ? 0.45f : 1.0f}"
+        android:background="@drawable/bg_b"
+        android:clickable="true"
+        android:elevation="@dimen/large_action_card_elevation"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackground"
+        android:minHeight="@dimen/rule_providers_item_min_height"
+        android:onClick="@{clicked}">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="@dimen/item_header_margin"
+            android:layout_toStartOf="@id/refresh_view"
+            android:orientation="vertical"
+            android:paddingVertical="@dimen/large_item_padding_vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@{state.item.name}"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body1" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/item_text_margin"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_rule_provider_badge"
+                    android:paddingHorizontal="@dimen/rule_providers_badge_padding_horizontal"
+                    android:paddingVertical="@dimen/rule_providers_badge_padding_vertical"
+                    android:text="@{typeBadge}"
+                    android:textAppearance="@style/TextAppearance.MaterialComponents.Caption" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/item_text_margin"
+                    android:background="@drawable/bg_rule_provider_badge"
+                    android:paddingHorizontal="@dimen/rule_providers_badge_padding_horizontal"
+                    android:paddingVertical="@dimen/rule_providers_badge_padding_vertical"
+                    android:text="@{behaviorBadge}"
+                    android:textAppearance="@style/TextAppearance.MaterialComponents.Caption" />
+
+                <!-- 更新失败徽标（设计板 4-F5）：与 banner 同源的错误色，banner 关闭后仍留在行内。 -->
+                <TextView
+                    android:id="@+id/failed_badge_view"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/item_text_margin"
+                    android:text="@string/rule_provider_update_failed_badge"
+                    android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
+                    android:textColor="?attr/colorError"
+                    android:visibility="@{state.updateFailed ? View.VISIBLE : View.GONE}" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/item_text_margin"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@{meta}"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/refresh_view"
+            android:layout_width="@dimen/rule_providers_action_size"
+            android:layout_height="@dimen/rule_providers_action_size"
+            android:layout_centerVertical="true"
+            android:layout_toStartOf="@id/menu_view"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="@{!state.updating}"
+            android:contentDescription="@string/rule_provider_update"
+            android:focusable="@{!state.updating}"
+            android:onClick="@{refresh}">
+
+            <ImageView
+                android:layout_width="@dimen/item_tailing_component_size"
+                android:layout_height="@dimen/item_tailing_component_size"
+                android:layout_gravity="center"
+                android:contentDescription="@string/rule_provider_update"
+                android:padding="@dimen/toolbar_image_action_padding"
+                android:src="@drawable/ic_baseline_sync"
+                android:visibility="@{state.updating ? View.GONE : View.VISIBLE}" />
+
+            <!-- 单条刷新中：设计板 4-F3 标注 20dp 圆形进度，替换刷新图标本身。 -->
+            <ProgressBar
+                android:layout_width="@dimen/rule_providers_progress_size"
+                android:layout_height="@dimen/rule_providers_progress_size"
+                android:layout_gravity="center"
+                android:visibility="@{state.updating ? View.VISIBLE : View.GONE}" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/menu_view"
+            android:layout_width="@dimen/rule_providers_action_size"
+            android:layout_height="@dimen/rule_providers_action_size"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="@dimen/item_text_margin"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:contentDescription="@string/more"
+            android:focusable="true"
+            android:onClick="@{menu}">
+
+            <ImageView
+                android:layout_width="@dimen/item_tailing_component_size"
+                android:layout_height="@dimen/item_tailing_component_size"
+                android:layout_gravity="center"
+                android:contentDescription="@string/more"
+                android:padding="@dimen/toolbar_image_action_padding"
+                android:src="@drawable/ic_baseline_more_vert" />
+        </FrameLayout>
+    </RelativeLayout>
+</layout>

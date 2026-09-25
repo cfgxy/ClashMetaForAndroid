@@ -13,6 +13,14 @@ enum class RuleProviderType(val literal: String) {
 
     companion object {
         fun fromLiteral(literal: String): RuleProviderType? = entries.find { it.literal == literal }
+
+        /**
+         * 图形界面可选的来源类型。INLINE 的内容载体是 payload 列表而非 url/path，
+         * 本版本表单不提供 payload 编辑，故不进候选集；同一判据在
+         * [com.github.kr328.clash.service.model.validate] 里以异常方式兜底，
+         * 避免 UI 与服务层两套口径。
+         */
+        val selectable: List<RuleProviderType> = entries.filter { it != INLINE }
     }
 }
 

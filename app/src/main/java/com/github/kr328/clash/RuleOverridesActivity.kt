@@ -2,6 +2,7 @@ package com.github.kr328.clash
 
 import com.github.kr328.clash.common.util.uuid
 import com.github.kr328.clash.design.RuleOverridesDesign
+import com.github.kr328.clash.design.util.showExceptionToast
 import com.github.kr328.clash.util.withClash
 import com.github.kr328.clash.util.withProfile
 import kotlinx.coroutines.isActive
@@ -32,31 +33,48 @@ class RuleOverridesActivity : BaseActivity<RuleOverridesDesign>() {
                 design.requests.onReceive {
                     when (it) {
                         RuleOverridesDesign.Request.Add -> {
-                            val candidates = fetchPolicyCandidates()
-                            val rule = design.showRuleEditor(null, candidates)
+                            val rule = design.showRuleEditor(
+                                null,
+                                fetchPolicyCandidates(),
+                                fetchRuleSetCandidates(),
+                            )
 
                             if (rule != null) {
-                                withProfile { addRuleOverride(uuid, rule.ruleType, rule.content, rule.policy, rule.position) }
-                                withProfile { update(uuid) }
+                                // 服务层会做 UI 无法完成的语义校验（RULE-SET 引用存在性等），
+                                // 保存失败必须在此收口：withProfile 只处理 DeadObjectException，
+                                // 再往上是 BaseActivity 的裸 launch，漏出去就是未捕获异常。
+                                design.saving {
+                                    withProfile {
+                                        addRuleOverride(uuid, rule.ruleType, rule.content, rule.policy, rule.position)
+                                    }
+                                    withProfile { update(uuid) }
+                                }
+
                                 design.fetch()
                             }
                         }
                         is RuleOverridesDesign.Request.Edit -> {
-                            val candidates = fetchPolicyCandidates()
-                            val rule = design.showRuleEditor(it.item, candidates)
+                            val rule = design.showRuleEditor(
+                                it.item,
+                                fetchPolicyCandidates(),
+                                fetchRuleSetCandidates(),
+                            )
 
                             if (rule != null) {
-                                withProfile {
-                                    updateRuleOverride(
-                                        it.item.copy(
-                                            ruleType = rule.ruleType,
-                                            content = rule.content,
-                                            policy = rule.policy,
-                                            position = rule.position,
+                                design.saving {
+                                    withProfile {
+                                        updateRuleOverride(
+                                            it.item.copy(
+                                                ruleType = rule.ruleType,
+                                                content = rule.content,
+                                                policy = rule.policy,
+                                                position = rule.position,
+                                            )
                                         )
-                                    )
+                                    }
+                                    withProfile { update(uuid) }
                                 }
-                                withProfile { update(uuid) }
+
                                 design.fetch()
                             }
                         }
@@ -72,7 +90,9 @@ class RuleOverridesActivity : BaseActivity<RuleOverridesDesign>() {
                                 // 「追加到组末尾」语义，避免撤销后规则顺序被改变（Review 阻断项 B1）。
                                 // 因为删除时未触发配置重应用，撤销后内核配置与删除前完全一致，
                                 // 无需重复调用 update(uuid)——避免连续两次真实下载订阅。
-                                withProfile { restoreRuleOverride(deleted) }
+                                // restoreRuleOverride 同样会做 RULE-SET 引用校验：撤销窗口内
+                                // 规则集可能已被删除，此时还原失败要提示而不是崩溃。
+                                design.saving { withProfile { restoreRuleOverride(deleted) } }
                                 design.fetch()
                             } else {
                                 // 未撤销才是本次真正生效的变更，此时才触发唯一一次配置重应用。
@@ -82,6 +102,26 @@ class RuleOverridesActivity : BaseActivity<RuleOverridesDesign>() {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * 统一的保存失败收口：把服务层异常转成可读 Snackbar，避免异常穿透到
+     * BaseActivity.onCreate 的 launch { main() } 导致进程崩溃。
+     */
+    private suspend fun RuleOverridesDesign.saving(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: Exception) {
+            showExceptionToast(getString(R.string.rule_save_failed, e.message ?: ""))
+        }
+    }
+
+    private suspend fun fetchRuleSetCandidates(): List<String> {
+        return try {
+            withProfile { queryRuleProviders(uuid).map { it.name } }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 

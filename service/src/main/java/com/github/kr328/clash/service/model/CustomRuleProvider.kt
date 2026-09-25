@@ -14,7 +14,7 @@ data class CustomRuleProvider(
     val updateInterval: RuleProviderUpdateInterval,
 )
 
-enum class RuleProviderValidationField { NAME, URL }
+enum class RuleProviderValidationField { NAME, TYPE, URL }
 
 class RuleProviderSyntaxException(val field: RuleProviderValidationField, message: String) :
     IllegalArgumentException(message)
@@ -31,6 +31,17 @@ fun CustomRuleProvider.validate() {
         throw RuleProviderSyntaxException(
             RuleProviderValidationField.NAME,
             "规则集名称只能包含字母、数字、下划线、短横线，长度 1-64：$name"
+        )
+    }
+
+    // INLINE 的内容载体是 config.yaml 里的 payload 列表，既不使用 url 也不使用 path
+    // （见 mihomo rules/provider/parse.go）。本期表单只覆盖 url/path 两种载体，没有
+    // payload 的编辑入口，放行 INLINE 只会写出缺 payload 的非法 rule-providers 条目，
+    // 因此在领域校验层直接拒绝——UI 候选集与服务层拒绝同源，不依赖 UI 自觉过滤。
+    if (type == RuleProviderType.INLINE) {
+        throw RuleProviderSyntaxException(
+            RuleProviderValidationField.TYPE,
+            "inline 类型规则集需要 payload 字段，本版本不支持"
         )
     }
 

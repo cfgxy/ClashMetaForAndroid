@@ -3,8 +3,10 @@
 
     <style name="ThemeOverlay" />
 
+    <!-- 错误色取自当前主题的 colorError（浅色 #B00020 / 深色 #F2B8B5），
+         不再硬编码浅色值——深色主题下硬编码值在 #121212 上对比度不足。 -->
     <style name="ThemeOverlay.ControlColorError">
-        <item name="colorControlNormal">@color/color_error</item>
-        <item name="android:textColor">@color/color_error</item>
+        <item name="colorControlNormal">?attr/colorError</item>
+        <item name="android:textColor">?attr/colorError</item>
     </style>
 </resources>

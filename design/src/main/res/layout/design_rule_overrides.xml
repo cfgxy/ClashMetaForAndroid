@@ -49,7 +49,7 @@
             android:layout_width="match_parent"
             android:layout_height="@dimen/rule_overrides_banner_height"
             android:layout_gravity="top"
-            android:background="@color/color_error_container"
+            android:background="?attr/colorErrorContainerCompat"
             android:clickable="true"
             android:focusable="true"
             android:gravity="center_vertical"

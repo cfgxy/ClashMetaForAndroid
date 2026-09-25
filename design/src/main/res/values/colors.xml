@@ -11,4 +11,14 @@
     <color name="color_dark_control_disabled">#FF808080</color>
     <color name="color_error">#FFB00020</color>
     <color name="color_error_container">#33B00020</color>
+    <!-- 深色错误色：#B00020 在 #121212/#202020 上对比度仅约 2.2:1，不可读。
+         取 Material 3 深色错误 token #F2B8B5，在 #121212 上对比度约 11.4:1、
+         在 #202020 上约 10.2:1，均高于 4.5:1；容器底色为同色系 24% 透明红。 -->
+    <color name="color_error_dark">#FFF2B8B5</color>
+    <color name="color_error_container_dark">#3DB00020</color>
+    <!-- 信息态容器底色（「正在更新全部规则集」进度 banner 背景）：设计板 F17 标注为
+         主色 16% 透明，浅深色各取对应主色（#1e4376 / #1976d2）叠加 0x29 alpha。
+         半透明叠加不改变前景文字颜色，文字仍用主题默认前景色，对比度不受影响。 -->
+    <color name="color_primary_container">#291E4376</color>
+    <color name="color_primary_container_dark">#291976D2</color>
 </resources>

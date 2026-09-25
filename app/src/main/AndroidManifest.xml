@@ -127,6 +127,20 @@
             android:configChanges="uiMode"
             android:exported="false"
             android:label="@string/profile" />
+        <!-- adjustResize：规则编辑弹层是 BottomSheet 内的表单，软键盘弹起时必须压缩可用高度
+             让弹层内部滚动（布局已包 NestedScrollView），否则底部保存按钮会被键盘永久遮住。 -->
+        <activity
+            android:name=".RuleOverridesActivity"
+            android:configChanges="uiMode"
+            android:exported="false"
+            android:label="@string/custom_rules"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".RuleProvidersActivity"
+            android:configChanges="uiMode"
+            android:exported="false"
+            android:label="@string/rule_providers"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ProxyActivity"
             android:configChanges="uiMode"

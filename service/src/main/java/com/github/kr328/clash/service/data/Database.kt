@@ -12,14 +12,16 @@ import java.lang.ref.SoftReference
 import androidx.room.Database as DB
 
 @DB(
-    version = 2,
-    entities = [Imported::class, Pending::class, Selection::class],
+    version = 4,
+    entities = [Imported::class, Pending::class, Selection::class, RuleOverride::class, RuleProvider::class],
     exportSchema = false,
 )
 abstract class Database : RoomDatabase() {
     abstract fun openImportedDao(): ImportedDao
     abstract fun openPendingDao(): PendingDao
     abstract fun openSelectionProxyDao(): SelectionDao
+    abstract fun openRuleOverrideDao(): RuleOverrideDao
+    abstract fun openRuleProviderDao(): RuleProviderDao
 
     companion object {
         val database: Database

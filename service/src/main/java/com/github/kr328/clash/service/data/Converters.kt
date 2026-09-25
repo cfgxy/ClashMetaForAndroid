@@ -2,6 +2,7 @@ package com.github.kr328.clash.service.data
 
 import androidx.room.TypeConverter
 import com.github.kr328.clash.service.model.Profile
+import com.github.kr328.clash.service.model.RulePosition
 import java.util.*
 
 class Converters {
@@ -23,5 +24,15 @@ class Converters {
     @TypeConverter
     fun toProfileType(type: String): Profile.Type {
         return Profile.Type.valueOf(type)
+    }
+
+    @TypeConverter
+    fun fromRulePosition(position: RulePosition): String {
+        return position.name
+    }
+
+    @TypeConverter
+    fun toRulePosition(position: String): RulePosition {
+        return RulePosition.valueOf(position)
     }
 }

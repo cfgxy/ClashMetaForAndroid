@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <data>
+        <variable
+            name="self"
+            type="com.github.kr328.clash.design.RuleProvidersDesign" />
+
+        <import type="android.view.View" />
+    </data>
+
+    <!-- 与自定义规则页（design_rule_overrides.xml）保持同一页面骨架：顶栏 + 计数行 + 卡片列表，
+         设计板 6 要求两页为姊妹页，不新增底栏/抽屉导航项。 -->
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingStart="@{self.surface.insets.start}"
+        android:paddingEnd="@{self.surface.insets.end}">
+
+        <com.github.kr328.clash.design.view.AppRecyclerView
+            android:id="@+id/recycler_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingTop="@{(float) self.surface.insets.top + @dimen/toolbar_height + @dimen/rule_providers_summary_height}"
+            android:paddingBottom="@{self.surface.insets.bottom}" />
+
+        <!-- 空态（设计板 4-F2）：标题 + 说明 + 主行动按钮，整组居中，
+             CTA 与顶栏 ＋ 指向同一个新增流程。 -->
+        <LinearLayout
+            android:id="@+id/empty_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingHorizontal="@dimen/main_padding_horizontal"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/rule_providers_empty_title"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/dialog_padding"
+                android:gravity="center"
+                android:text="@string/rule_providers_empty_desc"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2" />
+
+            <Button
+                android:id="@+id/empty_action_view"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/dialog_padding"
+                android:onClick="@{() -> self.requestAdd()}"
+                android:text="@string/rule_provider_add" />
+        </LinearLayout>
+
+        <!-- 更新全部进度条（设计板 4-F4）：信息底色 + 进度文案 +「后台运行」提示。 -->
+        <LinearLayout
+            android:id="@+id/progress_banner_view"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/rule_overrides_banner_height"
+            android:layout_gravity="top"
+            android:background="?attr/colorPrimaryContainerCompat"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="@dimen/item_header_margin"
+            android:visibility="gone">
+
+            <ProgressBar
+                android:layout_width="@dimen/rule_providers_progress_size"
+                android:layout_height="@dimen/rule_providers_progress_size"
+                android:layout_marginEnd="@dimen/item_text_margin" />
+
+            <TextView
+                android:id="@+id/progress_banner_text_view"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/item_text_margin"
+                android:text="@string/rule_provider_update_all_background"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2" />
+        </LinearLayout>
+
+        <!-- 失败 banner（设计板 4-F5）：点击后只显示失败项，与自定义规则页同一交互。 -->
+        <LinearLayout
+            android:id="@+id/failed_banner_view"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/rule_overrides_banner_height"
+            android:layout_gravity="top"
+            android:background="?attr/colorErrorContainerCompat"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:onClick="@{() -> self.requestToggleFailedOnly()}"
+            android:orientation="horizontal"
+            android:paddingHorizontal="@dimen/item_header_margin"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/failed_banner_text_view"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/item_text_margin"
+                android:text="@string/rule_apply_failed_view"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <com.github.kr328.clash.design.view.ActivityBarLayout
+            android:id="@+id/activity_bar_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="@{self.surface.insets.top}">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingEnd="@dimen/item_tailing_margin">
+
+                    <include
+                        layout="@layout/common_activity_bar"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:layout_toStartOf="@id/update_all_view" />
+
+                    <!-- 更新全部：设计板 6 要求该图标位于 ＋ 左侧，且必须有无障碍描述。 -->
+                    <ImageView
+                        android:id="@+id/update_all_view"
+                        android:layout_width="@dimen/item_tailing_component_size"
+                        android:layout_height="@dimen/item_tailing_component_size"
+                        android:layout_centerVertical="true"
+                        android:layout_marginEnd="@dimen/item_tailing_margin"
+                        android:layout_toStartOf="@id/add_view"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:contentDescription="@string/rule_provider_update_all"
+                        android:focusable="true"
+                        android:onClick="@{() -> self.requestUpdateAll()}"
+                        android:padding="@dimen/toolbar_image_action_padding"
+                        android:src="@drawable/ic_baseline_sync" />
+
+                    <ImageView
+                        android:id="@+id/add_view"
+                        android:layout_width="@dimen/item_tailing_component_size"
+                        android:layout_height="@dimen/item_tailing_component_size"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:contentDescription="@string/rule_provider_add"
+                        android:focusable="true"
+                        android:onClick="@{() -> self.requestAdd()}"
+                        android:padding="@dimen/toolbar_image_action_padding"
+                        android:src="@drawable/ic_baseline_add" />
+                </RelativeLayout>
+
+                <TextView
+                    android:id="@+id/summary_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/rule_providers_summary_height"
+                    android:ellipsize="end"
+                    android:gravity="center_vertical"
+                    android:maxLines="1"
+                    android:paddingHorizontal="@dimen/item_header_margin"
+                    android:textAppearance="@style/TextAppearance.MaterialComponents.Body2" />
+            </LinearLayout>
+        </com.github.kr328.clash.design.view.ActivityBarLayout>
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+</layout>

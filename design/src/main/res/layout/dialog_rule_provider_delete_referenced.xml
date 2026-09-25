@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 存在引用时的强提示删除确认（设计板 F14）：正文说明影响、列出引用该规则集的规则预览，
+     按钮只有「取消 · 不做任何操作」（默认）与「清空引用并删除」，不提供绕过引用检查的直接删除。 -->
+<layout xmlns:android="http://schemas.android.com/apk/res/android">
+    <data />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/message_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2" />
+
+        <!-- 引用规则预览：默认最多 3 行，点击下方链接后展开全部。 -->
+        <LinearLayout
+            android:id="@+id/references_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/item_text_margin"
+            android:background="?attr/colorPrimaryContainerCompat"
+            android:orientation="vertical"
+            android:paddingHorizontal="@dimen/item_text_margin"
+            android:paddingVertical="@dimen/rule_providers_badge_padding_vertical" />
+
+        <TextView
+            android:id="@+id/view_all_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/item_text_margin"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+            android:textColor="?attr/colorPrimary"
+            android:visibility="gone" />
+    </LinearLayout>
+</layout>

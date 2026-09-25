@@ -41,6 +41,25 @@
         <com.github.kr328.clash.design.view.LargeActionLabel
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:onClick="@{() -> master.requestRuleOverrides(self, profile)}"
+            android:padding="@dimen/bottom_sheet_menu_items_padding"
+            app:icon="@drawable/ic_baseline_view_list"
+            app:text="@string/custom_rules" />
+
+        <!-- 规则集管理紧随自定义规则：两者是同一组能力（RULE-SET 规则引用规则集），
+             subtext 的「新增」标记提示这是本版新增入口。 -->
+        <com.github.kr328.clash.design.view.LargeActionLabel
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:onClick="@{() -> master.requestRuleProviders(self, profile)}"
+            android:padding="@dimen/bottom_sheet_menu_items_padding"
+            app:icon="@drawable/ic_baseline_stack"
+            app:subtext="@string/rule_provider_badge_new"
+            app:text="@string/rule_providers" />
+
+        <com.github.kr328.clash.design.view.LargeActionLabel
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:onClick="@{() -> master.requestDuplicate(self, profile)}"
             android:padding="@dimen/bottom_sheet_menu_items_padding"
             android:visibility="@{profile.imported ? View.VISIBLE : View.GONE}"

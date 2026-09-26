@@ -6,6 +6,10 @@ on:
         description: 'ABI matrix (comma separated). Leave empty to use gradle.properties default (arm64-v8a).'
         required: false
         default: ''
+      release-tag:
+        description: 'Custom pre-release tag (e.g. v2.11.34-dev.20260926). Leave empty to refresh the rolling Prerelease-alpha.'
+        required: false
+        default: ''
   push:
     branches:
       - main
@@ -73,8 +77,9 @@ jobs:
         if: success()
         run: ./gradlew --no-daemon ${{ inputs.build-abis && format('-PbuildAbis={0}', inputs.build-abis) || '' }} app:assembleAlphaRelease
 
-      # Delete old Prerelease-alpha
+      # Delete old Prerelease-alpha (rolling tag only; custom release tags are kept)
       - uses: dev-drprasad/delete-tag-and-release@v1.1
+        if: ${{ !inputs.release-tag }}
         with:
           tag_name: Prerelease-alpha
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -83,7 +88,7 @@ jobs:
       - name: Tag Repo
         uses: richardsimko/update-tag@v3
         with:
-          tag_name: Prerelease-alpha
+          tag_name: ${{ inputs.release-tag || 'Prerelease-alpha' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -91,7 +96,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         if: ${{  success() }}
         with:
-          tag_name: Prerelease-alpha
+          tag_name: ${{ inputs.release-tag || 'Prerelease-alpha' }}
           files: app/build/outputs/apk/alpha/release/*
           prerelease: true
           generate_release_notes: true

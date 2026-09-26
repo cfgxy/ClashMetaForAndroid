@@ -299,6 +299,13 @@
     <string name="format_update_provider_failure">Update %1$s: %2$s</string>
     <string name="update_all">Update All</string>
 
+    <string name="share_qr_code">Share QR Code</string>
+    <string name="share_qr_code_tips">Scan with Clash on another device to import this profile</string>
+    <string name="share_qr_code_unavailable">This profile has no subscription URL to share</string>
+    <string name="share_qr_code_generate_failed">Unable to generate QR code</string>
+    <string name="share_qr_code_saved">QR code saved to Pictures</string>
+    <string name="share_qr_code_save_failed">Unable to save QR code</string>
+
     <string name="close">Close</string>
     <string name="keyword">Keyword</string>
 

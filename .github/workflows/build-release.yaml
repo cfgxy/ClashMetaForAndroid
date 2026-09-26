@@ -6,6 +6,10 @@ on:
       release-tag:
         description: 'Release Tag (v2.x.x)'
         required: true
+      build-abis:
+        description: 'ABI matrix (comma separated). Leave empty to use gradle.properties default (arm64-v8a).'
+        required: false
+        default: ''
 
 jobs:
   BuildRelease:
@@ -105,7 +109,7 @@ jobs:
 
       - name: Release Build
         if: success()
-        run: ./gradlew --no-daemon app:assembleMetaRelease
+        run: ./gradlew --no-daemon ${{ inputs.build-abis && format('-PbuildAbis={0}', inputs.build-abis) || '' }} app:assembleMetaRelease
 
       - name: Tag Repo
         uses: richardsimko/update-tag@v3

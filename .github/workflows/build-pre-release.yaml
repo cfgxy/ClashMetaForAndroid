@@ -1,6 +1,11 @@
 name: Build Pre-Release
 on:
   workflow_dispatch:
+    inputs:
+      build-abis:
+        description: 'ABI matrix (comma separated). Leave empty to use gradle.properties default (arm64-v8a).'
+        required: false
+        default: ''
   push:
     branches:
       - main
@@ -66,7 +71,7 @@ jobs:
 
       - name: Pre-release Build
         if: success()
-        run: ./gradlew --no-daemon app:assembleAlphaRelease
+        run: ./gradlew --no-daemon ${{ inputs.build-abis && format('-PbuildAbis={0}', inputs.build-abis) || '' }} app:assembleAlphaRelease
 
       # Delete old Prerelease-alpha
       - uses: dev-drprasad/delete-tag-and-release@v1.1

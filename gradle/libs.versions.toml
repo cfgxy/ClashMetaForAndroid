@@ -19,6 +19,7 @@ multiprocess = "1.0.0"
 quickie = "1.11.0"
 androidx-activity-ktx = "1.9.0"
 snakeyamlEngine = "2.7"
+zxing = "3.5.3"
 junit = "4.13.2"
 
 [libraries]
@@ -46,6 +47,7 @@ rikkax-multiprocess = { module = "dev.rikka.rikkax.preference:multiprocess", ver
 quickie-bundled = { group = "io.github.g00fy2.quickie", name = "quickie-bundled", version.ref = "quickie" }
 androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "androidx-activity-ktx" }
 snakeyaml-engine = { module = "org.snakeyaml:snakeyaml-engine", version.ref = "snakeyamlEngine" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 junit = { module = "junit:junit", version.ref = "junit" }
 
 [plugins]

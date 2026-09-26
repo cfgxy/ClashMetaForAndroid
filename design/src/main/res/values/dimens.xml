@@ -7,6 +7,8 @@
     <dimen name="dialog_padding">20dp</dimen>
     <dimen name="dialog_button_margin">5dp</dimen>
     <dimen name="dialog_menu_min_width">150dp</dimen>
+    <dimen name="share_qr_code_size">240dp</dimen>
+    <dimen name="share_qr_code_padding">8dp</dimen>
 
     <!-- Surface -->
     <dimen name="surface_landscape_min_width">500dp</dimen>

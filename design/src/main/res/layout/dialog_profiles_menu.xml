@@ -12,6 +12,7 @@
             name="profile"
             type="com.github.kr328.clash.service.model.Profile" />
 
+        <import type="com.github.kr328.clash.design.util.ProfileShare" />
         <import type="com.github.kr328.clash.service.model.Profile.Type" />
         <import type="android.view.View" />
     </data>
@@ -37,6 +38,15 @@
             android:padding="@dimen/bottom_sheet_menu_items_padding"
             app:icon="@drawable/ic_baseline_edit"
             app:text="@string/edit" />
+
+        <com.github.kr328.clash.design.view.LargeActionLabel
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:onClick="@{() -> master.requestShareQrCode(self, profile)}"
+            android:padding="@dimen/bottom_sheet_menu_items_padding"
+            android:visibility="@{ProfileShare.isShareable(profile) ? View.VISIBLE : View.GONE}"
+            app:icon="@drawable/ic_baseline_qr_code"
+            app:text="@string/share_qr_code" />
 
         <com.github.kr328.clash.design.view.LargeActionLabel
             android:layout_width="match_parent"

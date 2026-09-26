@@ -4,11 +4,16 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
+import androidx.core.content.ContextCompat
 import com.github.kr328.clash.common.util.intent
 import com.github.kr328.clash.common.util.setUUID
 import com.github.kr328.clash.common.util.ticker
 import com.github.kr328.clash.design.ProfilesDesign
 import com.github.kr328.clash.design.ui.ToastDuration
+import com.github.kr328.clash.design.util.ImageStore
 import com.github.kr328.clash.service.model.Profile
 import com.github.kr328.clash.util.withProfile
 import kotlinx.coroutines.Dispatchers
@@ -79,6 +84,19 @@ class ProfilesActivity : BaseActivity<ProfilesDesign>() {
 
                             startActivity(PropertiesActivity::class.intent.setUUID(uuid))
                         }
+                        is ProfilesDesign.Request.ShareQrCode ->
+                            design.showQrCode(it.profile)
+                        is ProfilesDesign.Request.SaveQrCode -> {
+                            val succeed = if (requestWriteExternalStorage()) {
+                                withContext(Dispatchers.IO) {
+                                    ImageStore.savePicture(this@ProfilesActivity, it.bitmap, it.fileName)
+                                }
+                            } else {
+                                false
+                            }
+
+                            design.showQrCodeSaveResult(succeed)
+                        }
                     }
                 }
                 if (activityStarted) {
@@ -88,6 +106,23 @@ class ProfilesActivity : BaseActivity<ProfilesDesign>() {
                 }
             }
         }
+    }
+
+    /**
+     * Android 9 及以下写公共相册需要 WRITE_EXTERNAL_STORAGE；Android 10 起走分区存储直接放行。
+     */
+    private suspend fun requestWriteExternalStorage(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return true
+        }
+
+        val permission = android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+
+        if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
+            return true
+        }
+
+        return startActivityForResult(RequestPermission(), permission)
     }
 
     private suspend fun ProfilesDesign.fetch() {

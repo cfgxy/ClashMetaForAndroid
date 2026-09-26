@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <data>
+        <variable
+            name="editing"
+            type="boolean" />
+    </data>
+
+    <!-- 软键盘弹起时（Activity 侧 windowSoftInputMode=adjustResize）弹层可用高度被压缩，
+         表单必须能在弹层内部自行滚动，否则底部的「添加规则集」按钮会被键盘永久遮住
+         （设计板 5 页脚要求）。 -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:id="@+id/form_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="@dimen/dialog_padding"
+            android:paddingTop="@dimen/dialog_padding"
+            android:paddingBottom="@dimen/dialog_padding">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/item_text_margin"
+                android:text="@{editing ? @string/rule_provider_edit : @string/rule_provider_add}"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/name_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/item_text_margin"
+                android:hint="@string/rule_provider_name"
+                app:errorEnabled="true">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/name_field"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- 来源类型分段切换（设计板 F9）：只有 HTTP 订阅与本地 FILE 两档，
+                 INLINE 因缺少 payload 编辑入口不进候选集（见 RuleProviderType.selectable）。 -->
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/type_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/dialog_padding"
+                app:singleSelection="true">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/type_http_view"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/rule_provider_type_http" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/type_file_view"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/rule_provider_type_file" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/behavior_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/dialog_padding"
+                android:hint="@string/rule_provider_behavior"
+                app:endIconDrawable="@drawable/ic_baseline_arrow_drop_down"
+                app:endIconMode="custom"
+                app:errorEnabled="true">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/behavior_field"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:cursorVisible="false"
+                    android:focusable="false"
+                    android:focusableInTouchMode="false" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- HTTP 时为订阅 URL；切到本地 FILE 时 hint 变为「本地文件路径」并置为只读，
+                 显示由名称与格式确定生成的相对路径（见下方 helper 文案）。 -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/url_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/item_text_margin"
+                android:hint="@string/rule_provider_url"
+                app:errorEnabled="true">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/url_field"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textUri"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/url_desc_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/item_text_margin"
+                android:text="@string/rule_provider_file_path_desc"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
+                android:visibility="gone" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/interval_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/item_text_margin"
+                android:hint="@string/rule_provider_interval"
+                app:endIconDrawable="@drawable/ic_baseline_arrow_drop_down"
+                app:endIconMode="custom">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/interval_field"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:cursorVisible="false"
+                    android:focusable="false"
+                    android:focusableInTouchMode="false" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- 本地缓存路径：由名称与格式确定性生成，不可编辑（结构性消除路径穿越）。 -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/path_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/item_text_margin"
+                android:hint="@string/rule_provider_path">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/path_field"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:cursorVisible="false"
+                    android:enabled="false"
+                    android:focusable="false"
+                    android:focusableInTouchMode="false"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <Button
+                android:id="@+id/save_view"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/dialog_padding"
+                android:text="@{editing ? @string/save : @string/rule_provider_add}" />
+
+            <Button
+                android:id="@+id/cancel_view"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/dialog_button_margin"
+                android:text="@string/cancel" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</layout>

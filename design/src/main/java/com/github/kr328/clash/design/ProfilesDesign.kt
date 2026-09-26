@@ -29,6 +29,8 @@ class ProfilesDesign(context: Context) : Design<ProfilesDesign.Request>(context)
         data class Active(val profile: Profile) : Request()
         data class Update(val profile: Profile) : Request()
         data class Edit(val profile: Profile) : Request()
+        data class RuleOverrides(val profile: Profile) : Request()
+        data class RuleProviders(val profile: Profile) : Request()
         data class Duplicate(val profile: Profile) : Request()
         data class Delete(val profile: Profile) : Request()
         data class ShareQrCode(val profile: Profile) : Request()
@@ -137,6 +139,18 @@ class ProfilesDesign(context: Context) : Design<ProfilesDesign.Request>(context)
 
     fun requestEdit(dialog: Dialog, profile: Profile) {
         requests.trySend(Request.Edit(profile))
+
+        dialog.dismiss()
+    }
+
+    fun requestRuleOverrides(dialog: Dialog, profile: Profile) {
+        requests.trySend(Request.RuleOverrides(profile))
+
+        dialog.dismiss()
+    }
+
+    fun requestRuleProviders(dialog: Dialog, profile: Profile) {
+        requests.trySend(Request.RuleProviders(profile))
 
         dialog.dismiss()
     }

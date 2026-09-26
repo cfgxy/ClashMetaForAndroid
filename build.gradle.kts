@@ -20,6 +20,27 @@ buildscript {
     }
 }
 
+// 构建 ABI 矩阵的唯一来源：默认值在 gradle.properties 的 buildAbis，可用 -PbuildAbis=... 覆盖。
+// 下方 ndk.abiFilters / cmake.abiFilters / splits.abi.include 三处声明全部由此列表驱动，
+// 保证「产物数量」与「native 编译量」同步收敛，不出现只减产物不减编译的情况。
+val supportedAbis = listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+
+val buildAbis: List<String> = (findProperty("buildAbis") as? String)
+    ?.split(',')
+    ?.map { it.trim() }
+    ?.filter { it.isNotEmpty() }
+    ?.distinct()
+    .orEmpty()
+    .also { abis ->
+        require(abis.isNotEmpty()) {
+            "buildAbis 为空：请在 gradle.properties 设置或用 -PbuildAbis=arm64-v8a 传入。"
+        }
+        val unknown = abis - supportedAbis.toSet()
+        require(unknown.isEmpty()) {
+            "buildAbis 含不支持的 ABI $unknown，可选值：$supportedAbis"
+        }
+    }
+
 subprojects {
     repositories {
         mavenCentral()
@@ -65,12 +86,12 @@ subprojects {
             resValue("integer", "release_code", "$versionCode")
 
             ndk {
-                abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+                abiFilters += buildAbis
             }
 
             externalNativeBuild {
                 cmake {
-                    abiFilters("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+                    abiFilters(*buildAbis.toTypedArray())
                 }
             }
 
@@ -185,10 +206,12 @@ subprojects {
 
             splits {
                 abi {
-                    isEnable = true
-                    isUniversalApk = true
+                    // 单 ABI 时产物本身就只有一个包，无需分包；且 AGP 禁止 splits 单值与
+                    // ndk.abiFilters 同时声明同一 ABI（"Conflicting configuration"），故直接关闭。
+                    isEnable = buildAbis.size > 1
+                    isUniversalApk = buildAbis.size > 1
                     reset()
-                    include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+                    include(*buildAbis.toTypedArray())
                 }
             }
         }

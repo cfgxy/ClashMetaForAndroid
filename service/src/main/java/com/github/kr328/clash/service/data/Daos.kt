@@ -11,3 +11,11 @@ fun PendingDao(): PendingDao {
 fun SelectionDao(): SelectionDao {
     return Database.database.openSelectionProxyDao()
 }
+
+fun RuleOverrideDao(): RuleOverrideDao {
+    return Database.database.openRuleOverrideDao()
+}
+
+fun RuleProviderDao(): RuleProviderDao {
+    return Database.database.openRuleProviderDao()
+}

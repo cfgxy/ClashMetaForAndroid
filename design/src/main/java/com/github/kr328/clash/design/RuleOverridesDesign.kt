@@ -30,6 +30,8 @@ class RuleOverridesDesign(context: android.content.Context) : Design<RuleOverrid
         object Add : Request()
         data class Edit(val item: RuleOverrideItem) : Request()
         data class Delete(val item: RuleOverrideItem) : Request()
+        object Import : Request()
+        object Export : Request()
     }
 
     private val binding = DesignRuleOverridesBinding
@@ -135,6 +137,14 @@ class RuleOverridesDesign(context: android.content.Context) : Design<RuleOverrid
 
     fun requestAdd() {
         requests.trySend(Request.Add)
+    }
+
+    fun requestImport() {
+        requests.trySend(Request.Import)
+    }
+
+    fun requestExport() {
+        requests.trySend(Request.Export)
     }
 
     private fun showMenu(item: RuleOverrideItem) {

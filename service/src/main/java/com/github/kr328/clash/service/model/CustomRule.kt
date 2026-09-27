@@ -1,9 +1,12 @@
 package com.github.kr328.clash.service.model
 
+import kotlinx.serialization.Serializable
+
 /**
  * 按 profile 绑定的一条自定义分流规则（图形界面表单的领域对象），
  * 与 Room 实体 RuleOverride 分离，便于在纯 Kotlin 层做格式化与校验，不依赖 Android/Room。
  */
+@Serializable
 data class CustomRule(
     val ruleType: RuleType,
     val content: String,

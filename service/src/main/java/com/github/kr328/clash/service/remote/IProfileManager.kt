@@ -1,6 +1,8 @@
 package com.github.kr328.clash.service.remote
 
 import com.github.kr328.clash.service.model.Profile
+import com.github.kr328.clash.service.model.RuleImportRequest
+import com.github.kr328.clash.service.model.RuleImportResult
 import com.github.kr328.clash.service.model.RulePosition
 import com.github.kr328.clash.service.model.RuleOverrideItem
 import com.github.kr328.clash.service.model.RuleProviderBehavior
@@ -57,4 +59,13 @@ interface IProfileManager {
      * true 时先清空全部引用再删除（对应「清空引用并删除」按钮，裁定一：不提供跳过引用检查的直接删除路径）。
      */
     suspend fun deleteRuleProvider(id: UUID, force: Boolean)
+
+    /**
+     * 原子导入一份已定稿的规则包内容：全部写入在同一个 Room 事务内完成，
+     * 任何一条失败即整体回滚，不留半份规则。
+     *
+     * 包的解析、版本校验、线路名映射与同名规则集决策都在调用方（UI 进程）完成，
+     * 服务层不接触 zip 字节，导入内容因此不进入任何执行路径。
+     */
+    suspend fun importRules(uuid: UUID, request: RuleImportRequest): RuleImportResult
 }

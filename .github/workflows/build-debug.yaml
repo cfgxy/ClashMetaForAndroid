@@ -65,7 +65,7 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           if [ -z "$SIGNING_KEYSTORE_BASE64" ] || [ -z "$SIGNING_STORE_PASSWORD" ] || [ -z "$SIGNING_KEY_ALIAS" ] || [ -z "$SIGNING_KEY_PASSWORD" ]; then
-            echo "::error::CMFA signing secrets are incomplete; refusing to build an APK with a temporary debug certificate"
+            echo "::error::CMFA 签名 secrets 不完整，拒绝使用临时 debug 证书构建 APK"
             exit 1
           fi
           umask 077

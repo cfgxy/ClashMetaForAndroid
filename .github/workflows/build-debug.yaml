@@ -57,19 +57,20 @@ jobs:
           sudo update-ca-certificates
           cp -f /etc/ssl/certs/ca-certificates.crt core/src/foss/golang/clash/component/ca/ca-certificates.crt
 
-      # - name: Signing properties
-      #   env:
-      #     SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
-      #     SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-      #     SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-      #   run: |
-      #     touch signing.properties
-      #     echo keystore.password="$SIGNING_STORE_PASSWORD" > signing.properties
-      #     echo key.alias="$SIGNING_KEY_ALIAS" >> signing.properties
-      #     echo key.password="$SIGNING_KEY_PASSWORD" >> signing.properties
-            
-      #     echo "cat signing.properties"
-      #     cat signing.properties
+      - name: Signing properties
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          if [ -n "$SIGNING_STORE_PASSWORD" ] && [ -n "$SIGNING_KEY_ALIAS" ] && [ -n "$SIGNING_KEY_PASSWORD" ]; then
+            echo keystore.password="$SIGNING_STORE_PASSWORD" > signing.properties
+            echo key.alias="$SIGNING_KEY_ALIAS" >> signing.properties
+            echo key.password="$SIGNING_KEY_PASSWORD" >> signing.properties
+            echo "signing.properties generated: APK will be signed with release.keystore (stable across builds)"
+          else
+            echo "::warning::SIGNING_STORE_PASSWORD / SIGNING_KEY_ALIAS / SIGNING_KEY_PASSWORD secrets are not fully configured; skipping stable signing — APK falls back to debug signing (signature varies between builds)"
+          fi
 
       - name: Build
         if: success()
@@ -81,6 +82,6 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{  success() }}
         with:
-          name: CMFA Debug Unsigned APK
+          name: CMFA Debug APK
           path: |
             app/build/outputs/apk/alpha/release/*.apk

@@ -1,10 +1,13 @@
 package com.github.kr328.clash.service.model
 
+import kotlinx.serialization.Serializable
+
 /**
  * 按 profile 绑定的一条规则集定义（图形界面表单的领域对象），字段集合取自
  * mihomo rules/provider/parse.go，与 Room 实体 data.RuleProvider 分离，
  * 便于在纯 Kotlin 层做格式化与校验，不依赖 Android/Room（同 [CustomRule] 的分层方式）。
  */
+@Serializable
 data class CustomRuleProvider(
     val name: String,
     val type: RuleProviderType,

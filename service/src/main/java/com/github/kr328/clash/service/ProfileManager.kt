@@ -1,6 +1,7 @@
 package com.github.kr328.clash.service
 
 import android.content.Context
+import androidx.room.withTransaction
 import com.github.kr328.clash.service.data.Database
 import com.github.kr328.clash.service.data.ImportedDao
 import com.github.kr328.clash.service.data.Pending
@@ -13,6 +14,8 @@ import com.github.kr328.clash.service.data.toEntity
 import com.github.kr328.clash.service.model.CustomRule
 import com.github.kr328.clash.service.model.CustomRuleProvider
 import com.github.kr328.clash.service.model.Profile
+import com.github.kr328.clash.service.model.RuleImportRequest
+import com.github.kr328.clash.service.model.RuleImportResult
 import com.github.kr328.clash.service.model.RulePosition
 import com.github.kr328.clash.service.model.RuleOverrideItem
 import com.github.kr328.clash.service.model.RuleProviderBehavior
@@ -348,6 +351,86 @@ class ProfileManager(private val context: Context) : IProfileManager,
         }
 
         dao.remove(id)
+    }
+
+    override suspend fun importRules(uuid: UUID, request: RuleImportRequest): RuleImportResult {
+        // 先在事务外把纯 Kotlin 层的校验跑完：非法输入根本进不到事务里，事务只负责「全写或全不写」。
+        request.providers.forEach { it.validate() }
+        request.rules.forEach { it.validate() }
+
+        val declaredNames = request.providers.map { it.name }.toSet()
+
+        return Database.database.withTransaction {
+            val providerDao = RuleProviderDao()
+            val overrideDao = RuleOverrideDao()
+
+            var inserted = 0
+            var overwritten = 0
+
+            for (provider in request.providers) {
+                val existing = providerDao.queryByName(uuid, provider.name)
+
+                if (existing != null) {
+                    providerDao.update(
+                        existing.copy(
+                            type = provider.type.literal,
+                            behavior = provider.behavior.literal,
+                            format = provider.format.literal,
+                            url = provider.url,
+                            updateIntervalSeconds = provider.updateInterval.seconds,
+                        )
+                    )
+                    overwritten++
+                } else {
+                    providerDao.insert(
+                        RuleProvider(
+                            id = UUID.randomUUID(),
+                            profileUuid = uuid,
+                            name = provider.name,
+                            type = provider.type.literal,
+                            behavior = provider.behavior.literal,
+                            format = provider.format.literal,
+                            url = provider.url,
+                            updateIntervalSeconds = provider.updateInterval.seconds,
+                            sortOrder = providerDao.queryMaxSortOrder(uuid) + 1,
+                        )
+                    )
+                    inserted++
+                }
+            }
+
+            var rulesInserted = 0
+
+            for (rule in request.rules) {
+                // RULE-SET 的存在性校验必须在事务内做：本批次刚写入的规则集也算已声明，
+                // 而包外不存在的规则集会让整批导入回滚，不会留下悬挂引用。
+                if (rule.ruleType == RuleType.RULE_SET &&
+                    rule.content !in declaredNames &&
+                    providerDao.queryByName(uuid, rule.content) == null
+                ) {
+                    throw RuleSyntaxException(RuleValidationField.CONTENT, "规则集不存在：${rule.content}")
+                }
+
+                overrideDao.insert(
+                    RuleOverride(
+                        id = UUID.randomUUID(),
+                        profileUuid = uuid,
+                        position = rule.position,
+                        ruleType = rule.ruleType.literal,
+                        content = rule.content,
+                        policy = rule.policy,
+                        sortOrder = overrideDao.queryMaxSortOrder(uuid, rule.position) + 1,
+                    )
+                )
+                rulesInserted++
+            }
+
+            RuleImportResult(
+                providersInserted = inserted,
+                providersOverwritten = overwritten,
+                rulesInserted = rulesInserted,
+            )
+        }
     }
 
     /**
